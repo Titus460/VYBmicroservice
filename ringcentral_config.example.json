@@ -1,0 +1,7 @@
+{
+  "client_id": "YOUR_RINGCENTRAL_CLIENT_ID",
+  "client_secret": "YOUR_RINGCENTRAL_CLIENT_SECRET",
+  "server": "https://platform.ringcentral.com",
+  "jwt": "YOUR_RINGCENTRAL_JWT_TOKEN",
+  "from_phone_number": "+1XXXXXXXXXX"
+}

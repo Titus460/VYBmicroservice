@@ -1,0 +1,31 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint function is to disconnect users
+summary: Disconnect users endpoint
+parameters:
+        - in: body
+          name: body
+          description: Disconnect Users
+          required: true
+          schema:
+            type: object
+            properties:
+                  userId:
+                    type: int
+                    description: userId
+                    example: 5
+                  disconnectId:
+                    type: int
+                    description: disconnectId
+                    example: 20                          
+             
+responses:
+  200:
+    description: Data retrieved successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

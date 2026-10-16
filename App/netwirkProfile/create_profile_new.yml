@@ -1,0 +1,86 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint creates netwirk profile
+summary: Create Profile  endpoint
+parameters:
+        - in: body
+          name: body
+          description: Profile creation
+          required: true
+          schema:
+            type: object
+            properties:
+                  userId:
+                    type: integer
+                    description: userId
+                    example: ""
+                  height:
+                    type: VARCHAR
+                    description: height
+                    example: "" 
+                  vibe_I_bring:
+                    type: string
+                    description: vibe_I_bring
+                    example: "Coffee "
+                  what_makes_my_friends_laugh_about_me:
+                    type: string
+                    description: what_makes_my_friends_laugh_about_me
+                    example: "I blink in 90% of photos." 
+                  weekend_usually_looks_like:
+                    type: string
+                    description: weekend_usually_looks_like
+                    example: "Exploring new cafes or city spots ☕🏙️"
+                  Describe_your_communication_style:
+                    type: string
+                    description: Describe_your_communication_style
+                    example: "In-person whenever possible"
+                  What_brings_you_to_VYB:
+                    type: string
+                    description: What_brings_you_to_VYB
+                    example: "Long-term relationship" 
+                  What_kind_of_partner_do_you_vibe_with_most:
+                    type: string
+                    description: What_kind_of_partner_do_you_vibe_with_most
+                    example: "Curious, creative, and open-minded"
+                  What_does_everyday_vyb_look_like:
+                    type: string
+                    description: What_does_everyday_vyb_look_like
+                    example: "Mostly spontaneous"
+                  prompt1question:
+                    type: string
+                    description: prompt1question
+                    example: "hi"
+                  prompt1answer:
+                    type: string
+                    description: prompt1answer
+                    example: "hello"
+                  prompt2question:
+                    type: string
+                    description: prompt2question
+                    example: "how are you"
+                  prompt2answer:
+                    type: string
+                    description: prompt2answer
+                    example: "good"             
+                  notify_connection:
+                      type: boolean
+                      description: notify_connection
+                      example: true/false
+                  background_notify:
+                      type: boolean
+                      description: background_notify
+                      example: true/false
+                  
+                  
+
+              
+responses:
+  200:
+    description: Profile created successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

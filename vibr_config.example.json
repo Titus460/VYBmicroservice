@@ -1,0 +1,12 @@
+{
+  "aws_access_key_id": "YOUR_AWS_ACCESS_KEY",
+  "aws_secret_access_key": "YOUR_AWS_SECRET_KEY",
+  "region": "ap-south-1",
+  "user_pool_id": "YOUR_USER_POOL_ID",
+  "openai_api_key": "YOUR_OPENAI_API_KEY",
+  "google_api_key": "YOUR_GOOGLE_MAPS_OR_PLACES_API_KEY",
+  "groq_api_key": "YOUR_GROQ_API_KEY",
+  "personalize_enabled": true,
+  "personalize_campaign_arn": "arn:aws:personalize:ap-south-1:512942362814:campaign/VYB_user_recommmendation",
+  "personalize_filter_arn": null
+}

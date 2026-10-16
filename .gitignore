@@ -1,0 +1,49 @@
+# --- Secrets (never commit plain keys) ---
+.env
+.env.*
+!.env.example
+secrets/
+*.enc
+cred.txt
+*.pem
+*.key
+kubeconfig*
+
+vibr_config.json
+vibr_registration_config.json
+ringcentral_config.json
+twilio_config.json
+Model/Common/Config.json
+icebreakerfinal-firebase-adminsdk*.json
+*-firebase-adminsdk*.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+.venv/
+env/
+
+# --- Logs & local artifacts ---
+app_startup_error.log
+*.log
+.tmp-production-auto/
+.tracked-files
+
+# --- Generated media ---
+profilepics/
+qrcodes/
+
+# --- Local Overture place trial (large, regenerated) ---
+data/overture/*.sqlite
+data/overture/*.parquet
+data/overture/*.geojson
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

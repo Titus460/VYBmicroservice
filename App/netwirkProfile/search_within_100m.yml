@@ -1,0 +1,39 @@
+tags:
+- netwirkProfile
+description: |
+  This fetches locations using Google API. The search radius is fixed at 300 meters.
+summary: Gather locations with Google API
+parameters:
+        - in: body
+          name: body
+          description: Get locations
+          schema:
+            type: object
+            properties:
+                  latitude:
+                    type: double
+                    description: latitude
+                    example: 33.1077656
+                  longitude:
+                    type: double
+                    description: longtitude
+                    example: -96.8286337
+                  user_id:
+                    type: integer
+                    description: user_id
+                    example: 5
+                  query:
+                    type: VARCHAR
+                    description: query
+                    example: McD
+
+              
+responses:
+  200:
+    description: Data retrieved successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

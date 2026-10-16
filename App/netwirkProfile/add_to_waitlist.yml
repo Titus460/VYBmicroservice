@@ -1,0 +1,34 @@
+tags:
+  - netwirkProfile
+description: |
+  This endpoint add waitlist.
+summary: This endpoint add wait list.
+parameters:
+  - in: body
+    name: body
+    description: add waitlist
+    schema:
+      type: object
+      required:
+        - userId
+        - latitude
+        - longitude
+      properties:
+        userId:
+          type: integer
+          description: User ID
+          example: 108
+        email:
+          type: varchar
+          description: email
+          example: ""
+
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

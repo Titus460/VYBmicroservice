@@ -1,0 +1,306 @@
+﻿apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vyb-api
+  namespace: vyb-development
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vyb-api
+  namespace: vyb-development
+  labels:
+    app.kubernetes.io/name: vyb-api
+    app.kubernetes.io/part-of: vyb
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vyb-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vyb-api
+        app.kubernetes.io/part-of: vyb
+    spec:
+      serviceAccountName: vyb-api
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+            # Database credentials are provisioned separately as a Kubernetes
+            # Secret. No credential values are stored in this repository.
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-db-secrets
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-db-secrets
+                  key: DB_PORT
+            - name: DB_READ_HOST
+              value: mysql-read.vyb-database.svc.cluster.local
+            - name: DB_READ_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-db-secrets
+                  key: DB_PORT
+            - name: DB_READ_TRAFFIC_MODE
+              value: safe
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-db-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-db-secrets
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-db-secrets
+                  key: DB_NAME
+            - name: NETWORK_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-db-secrets
+                  key: NETWORK_DB_NAME
+            # Development-only Swagger protection. Values are stored in the
+            # cluster Secret and are never committed to this repository.
+            - name: SWAGGER_AUTH_ENABLED
+              value: "true"
+            - name: SWAGGER_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-app-secrets
+                  key: SWAGGER_AUTH_USERNAME
+            - name: SWAGGER_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vyb-app-secrets
+                  key: SWAGGER_AUTH_PASSWORD
+          envFrom:
+            - secretRef:
+                name: vyb-app-secrets
+            - secretRef:
+                name: vybusplaces-credentials
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /var/run/secrets/vyb
+              readOnly: true
+            # Compatibility mounts for legacy code that resolves configuration
+            # relative to the application working directory (/app).
+            - name: runtime-config
+              mountPath: /app/vibr_config.json
+              subPath: vibr_config.json
+              readOnly: true
+            - name: runtime-config
+              mountPath: /app/vibr_registration_config.json
+              subPath: vibr_registration_config.json
+              readOnly: true
+            - name: runtime-config
+              mountPath: /app/Config.json
+              subPath: Config.json
+              readOnly: true
+            - name: runtime-config
+              mountPath: /app/firebase-admin.json
+              subPath: firebase-admin.json
+              readOnly: true
+            - name: runtime-config
+              mountPath: /app/ringcentral_config.json
+              subPath: ringcentral_config.json
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      imagePullSecrets:
+        - name: registry-vyb
+      volumes:
+        - name: runtime-config
+          secret:
+            secretName: vyb-runtime-config
+            defaultMode: 0400
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vyb-api
+  namespace: vyb-development
+  labels:
+    app.kubernetes.io/name: vyb-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: vyb-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: metrics
+      port: 8000
+      targetPort: http
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vyb-api
+  namespace: vyb-development
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vyb-api
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vyb-api
+  namespace: vyb-development
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vyb-api
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vyb-api
+  namespace: vyb-development
+  labels:
+    app.kubernetes.io/name: vyb-api
+    app.kubernetes.io/part-of: vyb
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vyb-api
+  minReplicas: 2
+  maxReplicas: 2
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vyb-api-network
+  namespace: vyb-development
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vyb-api
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 3306
+    - to:
+        - ipBlock:
+            cidr: 10.132.255.254/32
+      ports:
+        - protocol: TCP
+          port: 443

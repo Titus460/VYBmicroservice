@@ -1,0 +1,18 @@
+{
+  "aws_region": "ap-south-1",
+  "userpool_id": "YOUR_USER_POOL_ID",
+  "app_client_id": "YOUR_APP_CLIENT_ID",
+  "app_client_secret": "YOUR_APP_CLIENT_SECRET",
+  "aws_access_key_id": "YOUR_AWS_ACCESS_KEY",
+  "aws_secret_access_key": "YOUR_AWS_SECRET_KEY",
+  "jwt_secret_key": "YOUR_JWT_SECRET",
+  "ses_sender_email": "noreply@yourdomain.com",
+  "ses_from_name": "VYB",
+  "email_from": "noreply@yourdomain.com",
+  "use_ses": true,
+  "smtp_host": "smtp.office365.com",
+  "smtp_port": 587,
+  "smtp_use_tls": true,
+  "smtp_user": "noreply@yourdomain.com",
+  "smtp_password": "YOUR_SMTP_PASSWORD" 
+}

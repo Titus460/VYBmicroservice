@@ -1,0 +1,35 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint function is to delete account
+summary: Delete Account endpoint
+parameters:
+        - in: body
+          name: body
+          description: Delete Account
+          required: true
+          schema:
+            type: object
+            properties:
+                  email:
+                    type: varchar
+                    description: email
+                    example: ""  
+                  reason:
+                    type: varchar
+                    description: reason
+                    example: ""
+                  reason_text:
+                    type: varchar
+                    description: reason_text
+                    example: ""                       
+             
+responses:
+  200:
+    description: Data retrieved successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

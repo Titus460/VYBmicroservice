@@ -1,0 +1,32 @@
+tags:
+- netwirkProfile
+description: |
+  update devicetoken of the user.
+summary: update devicetoken endpoint
+parameters:
+        - in: body
+          name: body
+          description: update deviceToken
+          required: true
+          schema:
+            type: object
+            properties:
+                  user_id:
+                    type: varchar
+                    description: user_id
+                    example: ""
+                  deviceToken:
+                    type: varchar
+                    description: deviceToken
+                    example: ""
+                    
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

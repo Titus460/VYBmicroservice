@@ -1,0 +1,39 @@
+tags:
+- registration
+description: |
+  Verify the OTP sent to the user's phone number during registration.
+summary: verify phone OTP endpoint
+parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required:
+              - countryCode
+              - phoneNo
+              - Otp
+            properties:
+                  countryCode:
+                    type: string
+                    description: Country dialing code
+                    example: "+91"
+                  phoneNo:
+                    type: string
+                    description: Phone number without country code
+                    example: "9876543210"
+                  Otp:
+                    type: string
+                    description: 6-digit OTP received via SMS
+                    example: "123456"
+                  email:
+                    type: string
+                    description: Optional — link verified phone to an existing registration email
+                    example: "user@example.com"
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  500:
+    description: Internal server error

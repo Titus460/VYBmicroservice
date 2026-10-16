@@ -1,0 +1,124 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint edits user profile details
+summary: This endpoint edits user profile details
+parameters:
+        - in: body
+          name: body
+          description: Edit user profile details
+          schema:
+            type: object
+            properties:
+                  userId:
+                    type: integer
+                    description: userId
+                    example: 5
+                  fullName:
+                    type: varchar
+                    description: fullName
+                    example: ""
+                  Gender:
+                    type: varchar
+                    description: Gender
+                    example: ""
+                  Preference:
+                    type: varchar
+                    description: Preference
+                    example: ""
+                  DOB:
+                    type: varchar
+                    description: DOB
+                    example: ""
+                  countryCode:
+                    type: varchar
+                    description: countryCode
+                    example: ""
+                  phoneNo:
+                    type: varchar
+                    description: phoneNo
+                    example: ""
+                  city:
+                    type: varchar
+                    description: city
+                    example: ""
+                  state:
+                    type: varchar
+                    description: state
+                    example: ""
+                  country:
+                    type: varchar
+                    description: country
+                    example: ""
+                  height:
+                    type: VARCHAR
+                    description: height
+                    example: "" 
+                  what_makes_my_friends_laugh_about_me:
+                    type: string
+                    description: what_makes_my_friends_laugh_about_me
+                    example: "I blink in 90% of photos" 
+                  weekend_usually_looks_like:
+                    type: string
+                    description: weekend_usually_looks_like
+                    example: "Exploring new cafes or city spots ☕🏙️"
+                  What_brings_you_to_VYB:
+                    type: string
+                    description: What_brings_you_to_VYB
+                    example: "Long-term relationship" 
+                  Describe_your_communication_style:
+                    type: string
+                    description: Describe your communication style 
+                    example: "In-person whenever possible"
+                  vibe_I_bring:
+                    type: string
+                    description: vibe_I_bring
+                    example: "Coffee "  
+                  What_kind_of_partner_do_you_vibe_with_most:
+                    type: string
+                    description: What_kind_of_partner_do_you_vibe_with_most
+                    example: "Curious, creative, and open-minded"
+                 
+                  What_does_everyday_vyb_look_like:
+                    type: string
+                    description: What_does_everyday_vyb_look_like
+                    example: " "   
+                  notify_connection:
+                      type: boolean
+                      description: notify_connection
+                      example: true/false
+                  background_notify:
+                      type: boolean
+                      description: background_notify
+                      example: true/false
+                  prompt1question:
+                    type: string
+                    description: prompt1question
+                    example: "hi"
+                  prompt1answer:
+                    type: string
+                    description: prompt1answer
+                    example: "hello"
+                  prompt2question:
+                    type: string
+                    description: prompt2question
+                    example: "how are you"
+                  prompt2answer:
+                    type: string
+                    description: prompt2answer
+                    example: "good"         
+                  age_preference:
+                    type: varchar
+                    description: age_preference
+                    example: "18-25"
+                  
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

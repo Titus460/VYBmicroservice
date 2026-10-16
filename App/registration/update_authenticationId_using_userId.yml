@@ -1,0 +1,32 @@
+tags:
+- registration
+description: |
+  This endpoint updates authentication Id using user Id
+summary: user registration via Linkedin endpoint
+parameters:
+        - in: body
+          name: body
+          description: user registration
+          required: true
+          schema:
+            type: object
+            properties:                
+                  userId:
+                    type: varchar
+                    description: userId
+                    example: ""
+                  authenticationId:
+                    type: varchar
+                    description: authenticationId
+                    example: ""
+                    
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

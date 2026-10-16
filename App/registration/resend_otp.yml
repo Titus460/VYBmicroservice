@@ -1,0 +1,46 @@
+tags:
+- registration
+description: |
+  Resend OTP for a registered but unverified user.
+  Use channel to choose phone (SMS via RingCentral) or email (Cognito).
+  For phone channel, countryCode and phoneNo are required (email optional).
+  For email/both channels, email is required; phone is looked up from registration if omitted.
+summary: resend OTP by channel (phone or email)
+parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+                  email:
+                    type: string
+                    description: Required for email/both channels; optional for phone channel
+                    example: "user@example.com"
+                  channel:
+                    type: string
+                    description: Resend channel — phone or email (defaults to both if omitted)
+                    example: "email"
+                    enum:
+                      - phone
+                      - email
+                      - both
+                  countryCode:
+                    type: string
+                    description: Required for phone channel; optional for email/both
+                    example: "+91"
+                  phoneNo:
+                    type: string
+                    description: Required for phone channel; optional for email/both
+                    example: "9876543210"
+responses:
+  200:
+    description: OTP resent successfully
+  400:
+    description: Invalid request or email already verified
+  404:
+    description: Email not registered
+  429:
+    description: Too many resend attempts
+  500:
+    description: Internal server error

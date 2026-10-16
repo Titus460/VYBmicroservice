@@ -1,0 +1,56 @@
+tags:
+  - netwirkProfile
+description: |
+  This endpoint hide users from list.
+summary: hide users from list
+parameters:
+  - in: body
+    name: body
+    description: Wave details
+    required: true
+    schema:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: ID of the login user
+          example: 101
+        target_user_id:
+          type: integer
+          description: ID of the target user id
+          example: 202
+        hide_duration:
+          type: string
+          description: Duration for which to hide the user
+          example: 1_day/1_month
+  
+responses:
+  200:
+    description: Wave action executed successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  404:
+    description: Wave not found
+  500:
+    description: Internal server error
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

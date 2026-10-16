@@ -1,0 +1,39 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint's function is to report user
+summary: Report user endpoint
+parameters:
+        - in: body
+          name: body
+          description: Report User
+          required: true
+          schema:
+            type: object
+            properties:
+                  userId:
+                    type: int
+                    description: userId
+                    example: 5
+                  reported_userId:
+                    type: int
+                    description: reported_userId
+                    example: 20
+                  report_title:
+                    type: varchar
+                    description: report_title
+                    example: ""
+                  report_text:
+                    type: varchar
+                    description: report_text
+                    example: ""
+                                                    
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

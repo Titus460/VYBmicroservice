@@ -1,0 +1,28 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint fetches current liked user list near
+summary: This endpoint fetches current liked user list near
+parameters:
+        - in: body
+          name: body
+          description: Get liked list near
+          schema:
+            type: object
+            properties:
+                  userId:
+                    type: integer
+                    description: userId
+                    example: 108
+                
+                  
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

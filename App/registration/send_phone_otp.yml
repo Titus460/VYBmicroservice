@@ -1,0 +1,30 @@
+tags:
+- registration
+description: |
+  Send a 6-digit OTP to the user's phone number via RingCentral SMS.
+summary: send phone OTP endpoint
+parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required:
+              - countryCode
+              - phoneNo
+            properties:
+                  countryCode:
+                    type: string
+                    description: Country dialing code (e.g. +91 or 91)
+                    example: "+91"
+                  phoneNo:
+                    type: string
+                    description: Phone number without country code
+                    example: "9876543210"
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  500:
+    description: Internal server error

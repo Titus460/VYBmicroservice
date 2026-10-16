@@ -1,0 +1,53 @@
+tags:
+- registration
+description: |
+  This endpoint verifies otp for user registration
+summary: email checking endpoint
+parameters:
+        - in: body
+          name: body
+          description: email check
+          required: true
+          schema:
+            type: object
+            properties:
+                  email:
+                    type: varchar
+                    description: email
+                    example: ""
+                  phoneOTP:
+                    type: varchar
+                    description: SMS OTP for phone verification
+                    example: ""
+                  emailOTP:
+                    type: varchar
+                    description: Cognito email OTP for email verification
+                    example: ""
+                  countryCode:
+                    type: varchar
+                    description: Optional; looked up from registration if omitted
+                    example: "+1"
+                  phoneNo:
+                    type: varchar
+                    description: Optional; looked up from registration if omitted
+                    example: ""
+                  channel:
+                    type: varchar
+                    description: Verification channel — phone, email, or both (default both)
+                    example: "both"
+                    enum:
+                      - phone
+                      - email
+                      - both
+                  
+                                   
+              
+responses:
+  200:
+    description: Success — status, message, error_message, userId
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

@@ -1,0 +1,39 @@
+tags:
+- netwirkProfile
+description: |
+  This fetches locations using Google API
+summary: Gather locations with Google API
+parameters:
+        - in: body
+          name: body
+          description: Get locations
+          schema:
+            type: object
+            properties:
+                  latitude:
+                    type: double
+                    description: latitude
+                    example: 33.1077656
+                  radius:
+                    type: int
+                    description: radius
+                    example: 25
+                  longitude:
+                    type: double
+                    description: longtitude
+                    example: -96.8286337
+                  userId:
+                    type: integer
+                    description: userId
+                    example: 108
+
+              
+responses:
+  200:
+    description: Data retrieved successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

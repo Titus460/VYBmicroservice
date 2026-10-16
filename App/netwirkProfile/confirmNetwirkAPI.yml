@@ -1,0 +1,44 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint confirms netwirk requests
+summary: Confirm Netwirk  endpoint
+parameters:
+        - in: body
+          name: body
+          description: Confirm Netwirk
+          required: true
+          schema:
+            type: object
+            properties:
+                  loginUserId:
+                    type: integer
+                    description: loginUserId
+                    example: ""
+                  status:
+                    type: varchar
+                    description: status
+                    example: ""
+                  requestedUserId:
+                    type: integer
+                    description: requestedUserId
+                    example: ""
+                  placeId:
+                    type: varchar
+                    description: placeId
+                    example: ""
+                  type:
+                    type: varchar
+                    description: type
+                    example: ""       
+                  
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

@@ -1,0 +1,30 @@
+# Secrets — never commit
+vibr_config.json
+vibr_registration_config.json
+ringcentral_config.json
+twilio_config.json
+icebreakerfinal-firebase-adminsdk*.json
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+.venv/
+env/
+
+# Logs & local artifacts
+app_startup_error.log
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

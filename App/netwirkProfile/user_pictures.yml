@@ -1,0 +1,55 @@
+tags:
+  - netwirkProfile
+summary: Upload multiple user pictures
+description: |
+  This endpoint allows users to upload up to 4 images.
+
+consumes:
+  - multipart/form-data
+
+parameters:
+  - in: formData
+    name: userId
+    description: User ID of the uploading user
+    required: true
+    type: string
+
+  - in: formData
+    name: IsProfilePicture
+    description: Comma-separated flags (true/false), e.g. "true,false,false,false"
+    required: true
+    type: string
+
+  - in: formData
+    name: image1
+    type: file
+    required: true
+    description: Image file 1
+
+  - in: formData
+    name: image2
+    type: file
+    required: false
+    description: Image file 2
+
+  - in: formData
+    name: image3
+    type: file
+    required: false
+    description: Image file 3
+
+  - in: formData
+    name: image4
+    type: file
+    required: false
+    description: Image file 4
+
+responses:
+  200:
+    description: Pictures uploaded successfully
+  400:
+    description: Invalid request or input mismatch
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

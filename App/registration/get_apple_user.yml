@@ -1,0 +1,30 @@
+tags:
+- registration
+description: |
+  This endpoint retrieve  apple users name and mailid.
+summary: retrieve apple user 
+parameters:
+        - in: body
+          name: body
+          description: user registration
+          required: true
+          schema:
+            type: object
+            properties:
+                  apple_user_id:
+                    type: varchar
+                    description: apple_user_id
+                    example: ""
+                  
+
+                    
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

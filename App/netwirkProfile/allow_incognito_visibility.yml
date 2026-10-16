@@ -1,0 +1,36 @@
+tags:
+- netwirkProfile
+description: |
+  This fetches locations using Google API
+summary: Search locations with Google API
+parameters:
+        - in: body
+          name: body
+          description: Search locations
+          schema:
+            type: object
+            properties:
+                  incognito_userId:
+                    type: int
+                    description: incognito_userId
+                    example: 50
+                  visible_to_userId:
+                    type: int
+                    description: visible_to_userId
+                    example: "90,3"
+                  placeId:
+                    type: varchar
+                    description: placeId
+                    example: ""
+
+
+              
+responses:
+  200:
+    description: Data retrieved successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

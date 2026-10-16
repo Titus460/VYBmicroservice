@@ -1,0 +1,28 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint fetches user country
+summary: This endpoint fetches user country
+parameters:
+        - in: body
+          name: body
+          description: Get country list
+          schema:
+            type: object
+            properties:
+                  country:
+                    type: varchar
+                    description: country
+                    example: ""
+                  
+                  
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

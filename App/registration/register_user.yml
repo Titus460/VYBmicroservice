@@ -1,0 +1,81 @@
+tags:
+- registration
+description: |
+  This endpoint registers new users.
+summary: user registration endpoint
+parameters:
+        - in: body
+          name: body
+          description: user registration
+          required: true
+          schema:
+            type: object
+            properties:
+                  fullName:
+                    type: varchar
+                    description: fullName
+                    example: ""
+                  Gender:
+                    type: varchar
+                    description: Gender
+                    example: ""
+                  DOB:
+                    type: varchar
+                    description: DOB
+                    example: ""
+                  email:
+                    type: varchar
+                    description: email
+                    example: ""
+                  password:
+                    type: varchar
+                    description: password
+                    example: ""
+                  deviceToken:
+                    type: varchar
+                    description: deviceToken
+                    example: ""
+                  Preference:
+                    type: varchar
+                    description: Preference
+                    example: ""
+                  phoneNo:
+                    type: varchar
+                    description: phoneNo
+                    example: ""
+                  countryCode:
+                    type: varchar
+                    description: countryCode
+                    example: ""
+                  city:
+                    type: varchar
+                    description: city
+                    example: ""
+                  state:
+                    type: varchar
+                    description: state
+                    example: ""
+                  country:
+                    type: varchar
+                    description: country
+                    example: ""
+                  signupType:
+                    type: varchar
+                    description: signupType
+                    example: ""
+                  age_preference:
+                    type: varchar
+                    description: age_preference
+                    example: "18-25"
+
+                    
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

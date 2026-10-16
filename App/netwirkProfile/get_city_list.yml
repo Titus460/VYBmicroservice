@@ -1,0 +1,36 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint fetches user city
+summary: This endpoint fetches user city
+parameters:
+        - in: body
+          name: body
+          description: Get city list
+          schema:
+            type: object
+            properties:
+                  country:
+                    type: varchar
+                    description: country
+                    example: "United States of America"
+                  state:
+                    type: varchar
+                    description: state
+                    example: "Texas"
+                  city:
+                    type: varchar
+                    description: city
+                    example: "Hous"
+                  
+                  
+              
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

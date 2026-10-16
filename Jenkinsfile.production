@@ -1,0 +1,367 @@
+properties([
+  disableConcurrentBuilds(),
+  buildDiscarder(logRotator(numToKeepStr: '30'))
+])
+
+def agentYaml = '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-production-deployer
+  automountServiceAccountToken: true
+  containers:
+    - name: python
+      image: python:3.10-slim
+      command: ["sh", "-c", "cat"]
+      tty: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    - name: kubectl
+      image: alpine/k8s:1.35.0
+      command: ["sh", "-c", "cat"]
+      tty: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+    - name: crane
+      image: gcr.io/go-containerregistry/crane:debug
+      command: ["/busybox/cat"]
+      tty: true
+      env:
+        - name: DOCKER_CONFIG
+          value: /workspace/.docker
+        - name: SSL_CERT_FILE
+          value: /etc/ssl/certs/harbor-registry-ca.crt
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+      volumeMounts:
+        - name: registry-config
+          mountPath: /workspace/.docker
+          readOnly: true
+        - name: harbor-ca
+          mountPath: /etc/ssl/certs/harbor-registry-ca.crt
+          subPath: ca.crt
+          readOnly: true
+  volumes:
+    - name: registry-config
+      secret:
+        secretName: registry-vyb
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+    - name: harbor-ca
+      secret:
+        secretName: harbor-registry-ca
+        items:
+          - key: ca.crt
+            path: ca.crt
+'''
+
+podTemplate(yaml: agentYaml) {
+  node(POD_LABEL) {
+    def pipelineError = null
+    try {
+      timestamps {
+      timeout(time: 45, unit: 'MINUTES') {
+        withEnv([
+          'REGISTRY=harbor.harbor.svc.cluster.local',
+          'IMAGE_NAME=vyb/vyb-api',
+          'DEPLOYMENT=vyb-api',
+          'CONTAINER=api',
+          'NAMESPACE=vyb-production'
+        ]) {
+          stage('Checkout protected production branch') {
+            checkout scm
+            sh '''
+              set -eu
+              # checkout scm fetches all remote branches using Jenkins' Git
+              # credentials, including the origin/dev ref used below.
+              git rev-parse --verify origin/production
+              git rev-parse --verify origin/dev
+              test "$(git rev-parse HEAD)" = "$(git rev-parse origin/production)" || {
+                echo "ERROR: production job checkout does not match origin/production"
+                exit 1
+              }
+              git ls-files -z > .tracked-files
+            '''
+            env.PRODUCTION_COMMIT = sh(
+              script: 'git rev-parse HEAD',
+              returnStdout: true
+            ).trim()
+            def productionTree = sh(
+              script: 'git rev-parse HEAD^{tree}',
+              returnStdout: true
+            ).trim()
+            env.IMAGE_SHA = sh(
+              script: """
+                set -eu
+                for candidate in \$(git rev-list origin/dev); do
+                  if [ "\$(git rev-parse "\${candidate}^{tree}")" = "${productionTree}" ]; then
+                    printf '%s' "\$candidate"
+                    exit 0
+                  fi
+                done
+                echo "ERROR: protected production tree has no exact development build match" >&2
+                exit 1
+              """,
+              returnStdout: true
+            ).trim()
+            echo "Approved production commit ${env.PRODUCTION_COMMIT} exactly matches development image ${env.IMAGE_SHA}"
+          }
+
+          stage('Validate approved merge') {
+            sh '''
+              set -eu
+              printf '%s\n' "$IMAGE_SHA" | grep -Eq '^[0-9a-f]{40}$' || {
+                echo "ERROR: IMAGE_SHA must be a lowercase 40-character Git SHA"
+                exit 1
+              }
+              case "${IMAGE_SHA%??}" in
+                [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+                *) echo "ERROR: IMAGE_SHA must be a lowercase 40-character Git SHA"; exit 1 ;;
+              esac
+              git cat-file -e "${IMAGE_SHA}^{commit}"
+              test "$(git rev-parse "${IMAGE_SHA}^{tree}")" = "$(git rev-parse HEAD^{tree})" || {
+                echo "ERROR: development image source tree does not exactly match production"
+                exit 1
+              }
+            '''
+          }
+
+          stage('Validate source') {
+            container('python') {
+              sh '''
+                set -eu
+                python scripts/scan-secrets.py
+                python -m compileall -q app.py App Model
+                python - <<'PY'
+from pathlib import Path
+
+requirements = Path("requirements.txt").read_bytes()
+if requirements.startswith(bytes([239, 187, 191])):
+    raise SystemExit("requirements.txt must not contain a UTF-8 BOM")
+PY
+              '''
+            }
+          }
+
+          stage('Install pinned quality tools') {
+            container('python') {
+              sh '''
+                set -eu
+                python -m pip install --disable-pip-version-check --no-cache-dir \
+                  -r requirements-ci.txt
+                mkdir -p reports
+              '''
+            }
+          }
+
+          stage('Static analysis and security gates') {
+            container('python') {
+              sh '''
+                set +e
+                rm -f .quality-gate-failed
+
+                ruff check . --output-format=junit --output-file=reports/ruff.xml
+                ruff_status=$?
+                if [ "$ruff_status" -ne 0 ]; then
+                  echo "ERROR: Ruff correctness gate failed"
+                  touch .quality-gate-failed
+                fi
+
+                bandit -r app.py App Model \
+                  --skip B413 \
+                  --severity-level high \
+                  --confidence-level high \
+                  --format screen
+                bandit_status=$?
+                if [ "$bandit_status" -ne 0 ]; then
+                  echo "ERROR: Bandit high-severity/high-confidence gate failed"
+                  touch .quality-gate-failed
+                fi
+
+                bandit -r app.py App Model --skip B413 --format json \
+                  --output reports/bandit.json || true
+              '''
+            }
+          }
+
+          stage('Unit tests and routing coverage') {
+            container('python') {
+              sh '''
+                set +e
+                pytest \
+                  --junitxml=reports/pytest.xml \
+                  --cov=Model.db_routing \
+                  --cov-report=term-missing \
+                  --cov-report=xml:reports/coverage.xml \
+                  --cov-fail-under=85
+                test_status=$?
+                if [ "$test_status" -ne 0 ]; then
+                  echo "ERROR: pytest or routing coverage gate failed"
+                  touch .quality-gate-failed
+                fi
+              '''
+            }
+          }
+
+          stage('Dependency vulnerability inventory') {
+            container('python') {
+              sh '''
+                set +e
+                pip-audit \
+                  --no-deps \
+                  --disable-pip \
+                  --requirement requirements.txt \
+                  --progress-spinner off \
+                  --format json \
+                  --output reports/pip-audit.json
+                audit_status=$?
+                if [ "$audit_status" -ne 0 ]; then
+                  echo "WARNING: known dependency vulnerabilities were found."
+                  echo "The JSON report is archived; this becomes blocking after dependency remediation."
+                fi
+                exit 0
+              '''
+            }
+          }
+
+          stage('Publish quality reports') {
+            junit testResults: 'reports/pytest.xml,reports/ruff.xml', allowEmptyResults: false
+            archiveArtifacts artifacts: 'reports/**', fingerprint: true
+          }
+
+          stage('Enforce quality gate') {
+            container('python') {
+              sh '''
+                set -eu
+                test ! -f .quality-gate-failed
+                echo "SUCCESS: Python quality gates passed for production promotion"
+              '''
+            }
+          }
+
+          stage('Verify immutable Harbor artifact') {
+            container('crane') {
+              sh '''
+                set -eu
+                image="$REGISTRY/$IMAGE_NAME:$IMAGE_SHA"
+                crane digest "$image" | tee "$WORKSPACE/.approved-image-digest"
+                test -s "$WORKSPACE/.approved-image-digest"
+              '''
+            }
+          }
+
+          stage('Deploy exact image') {
+            container('kubectl') {
+              sh '''
+                set -eu
+                image="$REGISTRY/$IMAGE_NAME:$IMAGE_SHA"
+                digest="$(cat "$WORKSPACE/.approved-image-digest")"
+                previous_image="$(kubectl -n "$NAMESPACE" get deployment "$DEPLOYMENT" -o jsonpath='{.spec.template.spec.containers[?(@.name=="api")].image}')"
+                test -n "$previous_image"
+                printf '%s' "$previous_image" > "$WORKSPACE/.previous-production-image"
+
+                kubectl -n "$NAMESPACE" set image deployment/"$DEPLOYMENT" "$CONTAINER=$image"
+                kubectl -n "$NAMESPACE" annotate deployment/"$DEPLOYMENT" \
+                  vyb.sparinfosys.com/git-commit="$IMAGE_SHA" \
+                  vyb.sparinfosys.com/production-merge="$PRODUCTION_COMMIT" \
+                  vyb.sparinfosys.com/image-digest="$digest" \
+                  vyb.sparinfosys.com/approved-by="github-protected-branch-review" \
+                  --overwrite
+
+                if ! kubectl -n "$NAMESPACE" rollout status deployment/"$DEPLOYMENT" --timeout=20m; then
+                  echo "ERROR: production rollout failed; restoring previous image"
+                  kubectl -n "$NAMESPACE" set image deployment/"$DEPLOYMENT" "$CONTAINER=$previous_image"
+                  kubectl -n "$NAMESPACE" rollout status deployment/"$DEPLOYMENT" --timeout=20m || true
+                  exit 1
+                fi
+
+                kubectl -n "$NAMESPACE" wait --for=condition=available deployment/"$DEPLOYMENT" --timeout=2m
+              '''
+            }
+          }
+
+          stage('Verify running artifact') {
+            container('kubectl') {
+              sh '''
+                set -eu
+                digest="$(cat "$WORKSPACE/.approved-image-digest")"
+                expected="@$digest"
+                expected_replicas="$(kubectl -n "$NAMESPACE" get deployment "$DEPLOYMENT" \
+                  -o jsonpath='{.spec.replicas}')"
+                verified_replicas=0
+                pods="$(kubectl -n "$NAMESPACE" get pods \
+                  -l app.kubernetes.io/name="$DEPLOYMENT",environment=production \
+                  -o name)"
+                test -n "$pods"
+                for pod in $pods; do
+                  deletion_timestamp="$(kubectl -n "$NAMESPACE" get "$pod" \
+                    -o jsonpath='{.metadata.deletionTimestamp}')"
+                  if [ -n "$deletion_timestamp" ]; then
+                    echo "Skipping terminating pod $pod"
+                    continue
+                  fi
+                  image_id="$(kubectl -n "$NAMESPACE" get "$pod" \
+                    -o jsonpath='{.status.containerStatuses[?(@.name=="api")].imageID}')"
+                  test -n "$image_id"
+                  printf '%s\n' "$image_id"
+                  case "$image_id" in
+                    *"$expected") ;;
+                    *) echo "ERROR: running image digest does not match approved digest"; exit 1 ;;
+                  esac
+                  verified_replicas=$((verified_replicas + 1))
+                done
+                test "$verified_replicas" -eq "$expected_replicas" || {
+                  echo "ERROR: verified $verified_replicas of $expected_replicas production replicas"
+                  exit 1
+                }
+                echo "SUCCESS: immutable image $IMAGE_SHA ($digest) is running in $NAMESPACE"
+              '''
+            }
+          }
+        }
+      }
+      }
+    } catch (err) {
+      pipelineError = err
+      currentBuild.result = 'FAILURE'
+      throw err
+    } finally {
+      def result = currentBuild.currentResult ?: 'SUCCESS'
+      try {
+        emailext(
+          attachLog: true,
+          compressLog: true,
+          to: env.JENKINS_NOTIFICATION_TO,
+          subject: "[Jenkins] ${result}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+          body: """Job: ${env.JOB_NAME}
+Build: #${env.BUILD_NUMBER}
+Status: ${result}
+Duration: ${currentBuild.durationString}
+Branch: production
+Commit: ${env.IMAGE_SHA ?: env.GIT_COMMIT ?: 'N/A'}
+Build URL: ${env.BUILD_URL}
+Error: ${pipelineError?.message ?: 'None'}
+"""
+        )
+      } catch (notificationError) {
+        echo "Email notification failed: ${notificationError.message}"
+      }
+    }
+  }
+}

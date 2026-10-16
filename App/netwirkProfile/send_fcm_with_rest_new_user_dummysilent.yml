@@ -1,0 +1,27 @@
+tags:
+  - netwirkProfile
+description: |
+  This sends a silent notification using Firebase Cloud Messaging (FCM) to a specific device.
+summary: Send silent FCM notification
+parameters:
+  - in: body
+    name: body
+    description: Provide the FCM device token
+    required: true
+    schema:
+      type: object
+      properties:
+        token:
+          type: varchar
+          description: FCM device token
+          example: "your_device_token_here"
+
+responses:
+  200:
+    description: Notification sent successfully
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

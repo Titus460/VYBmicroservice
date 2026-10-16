@@ -1,0 +1,48 @@
+tags:
+- netwirkProfile
+description: |
+  This endpoint checksout user from checkin location
+summary: Checkout user from checkin location
+parameters:
+        - in: body
+          name: body
+          description: Checkout user from checkin location
+          required: true
+          schema:
+            type: object
+            properties:
+                  userId:
+                    type: int
+                    description: userId
+                    example: 5
+                  placeId:
+                    type: int
+                    description: placeId
+                    example: ""
+                  eventId:
+                    type: int
+                    description: eventId
+                    example: 2
+                  incognito:
+                    type: varchar
+                    description: incognito
+                    example: ""
+                 
+securityDefinitions:
+  jwt:
+    type: apiKey
+    name: Authorization
+    in: header
+    
+security:
+  - Bearer: []
+              
+responses:
+  200:
+    description: Flag and Status Successfully Retrieved
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

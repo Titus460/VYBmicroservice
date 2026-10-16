@@ -1,0 +1,123 @@
+Facebook -
+
+CREATE TABLE IF NOT EXISTS spartenant.facebook_media_data
+(
+    id character varying(255) COLLATE pg_catalog."default",
+    created_time character varying(2000) COLLATE pg_catalog."default",
+    source character varying(2000) COLLATE pg_catalog."default"
+)
+
+CREATE TABLE IF NOT EXISTS spartenant.facebook_page_analytics
+(
+    metric character varying(255) COLLATE pg_catalog."default",
+    endtime character varying(255) COLLATE pg_catalog."default",
+    value character varying(255) COLLATE pg_catalog."default"
+)
+
+CREATE TABLE IF NOT EXISTS spartenant.facebook_page_demographics
+(
+    metric character varying(255) COLLATE pg_catalog."default",
+    endtime character varying(255) COLLATE pg_catalog."default",
+    age character varying(255) COLLATE pg_catalog."default",
+    gender character varying(255) COLLATE pg_catalog."default",
+    value character varying(255) COLLATE pg_catalog."default"
+)
+
+
+Instagram -
+
+CREATE TABLE IF NOT EXISTS spartenant.instagram_analytics
+(
+    metric character varying(255) COLLATE pg_catalog."default",
+    endtime character varying(255) COLLATE pg_catalog."default",
+    value integer
+)
+
+CREATE TABLE IF NOT EXISTS spartenant.instagram_demographics
+(
+    metric character varying(255) COLLATE pg_catalog."default",
+    identifier character varying(255) COLLATE pg_catalog."default",
+    value character varying(255) COLLATE pg_catalog."default"
+)
+
+CREATE TABLE IF NOT EXISTS spartenant.instagram_media_data
+(
+    id character varying(255) COLLATE pg_catalog."default",
+    caption character varying(2000) COLLATE pg_catalog."default",
+    comments_count integer,
+    like_count integer,
+    media_type character varying(255) COLLATE pg_catalog."default",
+    media_url character varying(2000) COLLATE pg_catalog."default",
+    permalink character varying(255) COLLATE pg_catalog."default",
+    thumbnail_url character varying(2000) COLLATE pg_catalog."default",
+    "timestamp" character varying(255) COLLATE pg_catalog."default",
+    impressions integer,
+    saved integer,
+    plays integer,
+    shares integer
+)
+
+Google -
+
+CREATE TABLE IF NOT EXISTS google_ads
+(
+    googleadscampaignname character varying(255) COLLATE pg_catalog."default",
+    googleadscampaignid character varying(255) COLLATE pg_catalog."default",
+    date character varying(255) COLLATE pg_catalog."default",
+    googleadsadnetworktype character varying(255) COLLATE pg_catalog."default",
+    googleadscampaigntype character varying(255) COLLATE pg_catalog."default",
+    advertiseradcost double precision,
+    advertiseradclicks double precision,
+    advertiseradcostperclick double precision,
+    advertiseradimpressions double precision,
+    advertiseradcostperconversion double precision,
+    engagementrate double precision,
+    conversions double precision
+)
+
+CREATE TABLE IF NOT EXISTS spartenant.google_ads_more_fields
+(
+    googleadscampaignname character varying(255) COLLATE pg_catalog."default",
+    googleadscampaignid character varying(255) COLLATE pg_catalog."default",
+    date character varying(255) COLLATE pg_catalog."default",
+    country character varying(255) COLLATE pg_catalog."default",
+    region character varying(255) COLLATE pg_catalog."default",
+    city character varying(255) COLLATE pg_catalog."default",
+    pagelocation character varying(255) COLLATE pg_catalog."default",
+    conversions integer
+)
+
+CREATE TABLE IF NOT EXISTS spartenant.google_analytics
+(
+    city character varying(255) COLLATE pg_catalog."default",
+    cityid character varying(255) COLLATE pg_catalog."default",
+    region character varying(255) COLLATE pg_catalog."default",
+    country character varying(255) COLLATE pg_catalog."default",
+    pagetitle character varying(255) COLLATE pg_catalog."default",
+    date character varying(255) COLLATE pg_catalog."default",
+    browser character varying(255) COLLATE pg_catalog."default",
+    devicecategory character varying(255) COLLATE pg_catalog."default",
+    eventname character varying(255) COLLATE pg_catalog."default",
+    activeusers integer,
+    sessions integer,
+    screenpageviews integer,
+    conversions integer,
+    averagepurchaserevenue double precision,
+    averagepurchaserevenueperuser double precision,
+    firsttimepurchasers integer,
+    newusers integer
+)
+
+CREATE TABLE IF NOT EXISTS spartenant.google_analytics_sessiondefaultchannels
+(
+    sessiondefaultchannelgroup character varying(255) COLLATE pg_catalog."default",
+    date character varying(255) COLLATE pg_catalog."default",
+    activeusers integer,
+    sessions integer,
+    userengagementduration integer,
+    engagementrate double precision,
+    averagesessionduration double precision,
+    eventcount integer,
+    engagedsessions integer,
+    conversions integer
+)

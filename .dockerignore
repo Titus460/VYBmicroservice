@@ -1,0 +1,17 @@
+﻿.git
+.github
+__pycache__
+*.py[cod]
+*.log
+.env*
+.venv
+cred.txt
+*.pem
+*.key
+kubeconfig*
+icebreakerfinal-firebase-adminsdk-*.json
+vibr_config.json
+vibr_registration_config.json
+Model/Common/Config.json
+shape_predictor_68_face_landmarks*.bz2
+db/

@@ -1,0 +1,42 @@
+tags:
+  - netwirkProfile
+description: |
+  This endpoint validates the location of a user.
+summary: This endpoint validates the location of a user.
+parameters:
+  - in: body
+    name: body
+    description: Check location
+    schema:
+      type: object
+      required:
+        - userId
+        - latitude
+        - longitude
+      properties:
+        userId:
+          type: integer
+          description: User ID
+          example: 108
+        latitude:
+          type: number
+          description: Latitude
+          example: 33.1077656
+        longitude:
+          type: number
+          description: Longitude
+          example: -96.8286337
+        deviceCity:
+          type: string
+          description: Device city (optional)
+          example: ""
+
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid request body
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

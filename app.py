@@ -94,7 +94,7 @@ try:
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=120)
     JWTManager(app)
 
-    _route_services = (SERVICE_NAME,) if SERVICE_NAME else tuple(ALL_SERVICES)
+    _route_services = tuple(ALL_SERVICES) if SERVICE_NAME in (None, "legacy") else (SERVICE_NAME,)
     for _svc in _route_services:
         _route_mod = importlib.import_module(f"App.{_svc}_routes")
         for _bp in _route_mod.BLUEPRINTS:
@@ -115,7 +115,10 @@ try:
         },
     }
 
-    Swagger(app)
+    swagger = Swagger(app)
+    if SERVICE_NAME == "legacy":
+        with app.app_context():
+            swagger.get_apispecs("apispec_1")
 
     @app.route("/")
     def hello_world():

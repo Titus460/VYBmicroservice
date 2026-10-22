@@ -12,8 +12,9 @@ SERVICES = {
         f"{AUTH}/check_email_exists",
         f"{AUTH}/verify_otp",
         f"{AUTH}/resend_otp",
-        f"{AUTH}/send_phone_otp",
-        f"{AUTH}/verify_phone_otp",
+        # Phone OTP sending/verification is disabled; register with email only.
+        # f"{AUTH}/send_phone_otp",
+        # f"{AUTH}/verify_phone_otp",
         f"{AUTH}/checkPhoneNumberExists",
         f"{AUTH}/user_login",
         f"{AUTH}/user_logout",

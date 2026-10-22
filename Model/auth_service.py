@@ -248,8 +248,10 @@ class AuthRegistrationService(RegistrationBase):
 
             otp_sent = {"email": False, "phone": False}
             send_email = signupType != "social"
-            send_phone = signupType != "social" and country_code and phone_no
-            shared_otp = self._generate_otp() if (send_email and send_phone) else None
+            # Phone OTP sending/verification is disabled; register with email only.
+            # send_phone = signupType != "social" and country_code and phone_no
+            # shared_otp = self._generate_otp() if (send_email and send_phone) else None
+            shared_otp = None
 
             if send_email:
                 signup_result = self._register_cognito_user(email, password, otp=shared_otp)
@@ -260,15 +262,15 @@ class AuthRegistrationService(RegistrationBase):
                     }
                 otp_sent["email"] = True
 
-            phone_otp_info = None
-            if send_phone:
-                try:
-                    phone_otp_info = self._send_phone_otp_internal(
-                        email, country_code, phone_no, otp=shared_otp,
-                    )
-                    otp_sent["phone"] = True
-                except Exception as otp_err:
-                    logging.error("Phone OTP send failed for %s: %s", email, otp_err)
+            # phone_otp_info = None
+            # if send_phone:
+            #     try:
+            #         phone_otp_info = self._send_phone_otp_internal(
+            #             email, country_code, phone_no, otp=shared_otp,
+            #         )
+            #         otp_sent["phone"] = True
+            #     except Exception as otp_err:
+            #         logging.error("Phone OTP send failed for %s: %s", email, otp_err)
 
             if signupType == "social":
                 if self._cognito_get_user_state(email) == "verified":
@@ -335,11 +337,11 @@ class AuthRegistrationService(RegistrationBase):
                 'loginWebToken': loginWebToken,
                 'otpSent': otp_sent,
             }
-            if phone_otp_info:
-                response['otpSent']['phoneOtp'] = phone_otp_info['otp']
-                response['otpSent']['phoneE164'] = phone_otp_info['phone_e164']
-            if otp_sent['email'] and otp_sent['phone']:
-                response['otpSent']['sharedOtp'] = True
+            # if phone_otp_info:
+            #     response['otpSent']['phoneOtp'] = phone_otp_info['otp']
+            #     response['otpSent']['phoneE164'] = phone_otp_info['phone_e164']
+            # if otp_sent['email'] and otp_sent['phone']:
+            #     response['otpSent']['sharedOtp'] = True
             if otp_sent['email']:
                 response['otpSent']['emailTo'] = email
                 if self._uses_ses_for_email_otp():
@@ -487,55 +489,57 @@ class AuthRegistrationService(RegistrationBase):
         })
 
     def verify_otp(self):
-        """Verify OTP by channel: phone, email (Cognito), or both."""
-        phone_e164_on_miss = None
-        phone_verified_email = None
+        """Verify email OTP. Phone OTP sending/verification is disabled."""
+        # phone_e164_on_miss = None
+        # phone_verified_email = None
         try:
             cfg = self._get_aws_config()
             cursor = self.db.cur()
             data = request.get_json() or {}
             email = self._normalize_email(data['email'])
-            country_code = data.get('countryCode')
-            phone_no = data.get('phoneNo')
-            channel = (data.get('channel') or 'both').strip().lower()
-            if channel == 'otp':
-                channel = 'email'
+            # country_code = data.get('countryCode')
+            # phone_no = data.get('phoneNo')
+            # Phone OTP sending/verification is disabled; email-only registration.
+            channel = 'email'
+            # channel = (data.get('channel') or 'both').strip().lower()
+            # if channel == 'otp':
+            #     channel = 'email'
+            #
+            # if channel not in ('phone', 'email', 'both'):
+            #     return jsonify({
+            #         'status': 'Failure',
+            #         'message': 'Phone and email are not verified.',
+            #         'error_message': 'Invalid channel. Use phone, email, or both.',
+            #         'userId': None,
+            #     }), 400
 
-            if channel not in ('phone', 'email', 'both'):
-                return jsonify({
-                    'status': 'Failure',
-                    'message': 'Phone and email are not verified.',
-                    'error_message': 'Invalid channel. Use phone, email, or both.',
-                    'userId': None,
-                }), 400
-
-            phone_otp = self._normalize_otp_input(
-                data.get('phoneOTP') or data.get('phoneOtp')
-            )
+            # phone_otp = self._normalize_otp_input(
+            #     data.get('phoneOTP') or data.get('phoneOtp')
+            # )
             email_otp = self._normalize_otp_input(
-                data.get('emailOTP') or data.get('emailOtp')
+                data.get('emailOTP') or data.get('emailOtp') or data.get('otp') or data.get('OTP')
             )
-            single_otp = self._normalize_otp_input(
-                data.get('otp') or data.get('OTP')
-            )
-            if channel == 'both' and single_otp and not phone_otp and not email_otp:
-                phone_otp = single_otp
-                email_otp = single_otp
-            elif channel == 'both' and phone_otp and not email_otp:
-                email_otp = phone_otp
-            elif channel == 'both' and email_otp and not phone_otp:
-                phone_otp = email_otp
+            # single_otp = self._normalize_otp_input(
+            #     data.get('otp') or data.get('OTP')
+            # )
+            # if channel == 'both' and single_otp and not phone_otp and not email_otp:
+            #     phone_otp = single_otp
+            #     email_otp = single_otp
+            # elif channel == 'both' and phone_otp and not email_otp:
+            #     email_otp = phone_otp
+            # elif channel == 'both' and email_otp and not phone_otp:
+            #     phone_otp = email_otp
 
-            verify_phone = channel in ('phone', 'both')
-            verify_email = channel in ('email', 'both')
+            # verify_phone = channel in ('phone', 'both')
+            verify_email = True
 
-            if verify_phone and not phone_otp:
-                return jsonify({
-                    'status': 'Failure',
-                    'message': self._build_verification_message(False, False, channel),
-                    'error_message': 'phoneOTP is required for phone verification.',
-                    'userId': None,
-                }), 400
+            # if verify_phone and not phone_otp:
+            #     return jsonify({
+            #         'status': 'Failure',
+            #         'message': self._build_verification_message(False, False, channel),
+            #         'error_message': 'phoneOTP is required for phone verification.',
+            #         'userId': None,
+            #     }), 400
             if verify_email and not email_otp:
                 return jsonify({
                     'status': 'Failure',
@@ -550,48 +554,48 @@ class AuthRegistrationService(RegistrationBase):
                     message='Email is verified.',
                 )
 
-            if verify_phone:
-                if not (country_code and phone_no):
-                    cursor.execute(
-                        "SELECT countryCode, phoneNo FROM icebreaker.registration WHERE email = %s",
-                        (email,),
-                    )
-                    reg = cursor.fetchone()
-                    if reg and reg[0] and reg[1]:
-                        country_code, phone_no = reg[0], reg[1]
-
-                phone_status, phone_result = self._attempt_phone_otp_verification(
-                    email, country_code, phone_no, phone_otp, cursor
-                )
-                if phone_status == 'verified':
-                    phone_verified_email = phone_result
-                    if channel == 'phone':
-                        return self._verification_response(
-                            cursor, phone_result, phone_verified=True, email_verified=False,
-                            channel=channel,
-                        )
-                elif phone_status == 'error':
-                    error_body = phone_result.get_json() if hasattr(phone_result, 'get_json') else {}
-                    return jsonify({
-                        'status': 'Failure',
-                        'message': self._build_verification_message(False, False, channel),
-                        'error_message': error_body.get('message', 'Phone verification failed.'),
-                        'userId': None,
-                    }), phone_result.status_code if hasattr(phone_result, 'status_code') else 400
-                else:
-                    phone_e164_on_miss = phone_result
-                    return jsonify({
-                        'status': 'Failure',
-                        'message': self._build_verification_message(False, False, channel),
-                        'error_message': 'Phone OTP is invalid.',
-                        'userId': None,
-                    })
+            # if verify_phone:
+            #     if not (country_code and phone_no):
+            #         cursor.execute(
+            #             "SELECT countryCode, phoneNo FROM icebreaker.registration WHERE email = %s",
+            #             (email,),
+            #         )
+            #         reg = cursor.fetchone()
+            #         if reg and reg[0] and reg[1]:
+            #             country_code, phone_no = reg[0], reg[1]
+            #
+            #     phone_status, phone_result = self._attempt_phone_otp_verification(
+            #         email, country_code, phone_no, phone_otp, cursor
+            #     )
+            #     if phone_status == 'verified':
+            #         phone_verified_email = phone_result
+            #         if channel == 'phone':
+            #             return self._verification_response(
+            #                 cursor, phone_result, phone_verified=True, email_verified=False,
+            #                 channel=channel,
+            #             )
+            #     elif phone_status == 'error':
+            #         error_body = phone_result.get_json() if hasattr(phone_result, 'get_json') else {}
+            #         return jsonify({
+            #             'status': 'Failure',
+            #             'message': self._build_verification_message(False, False, channel),
+            #             'error_message': error_body.get('message', 'Phone verification failed.'),
+            #             'userId': None,
+            #         }), phone_result.status_code if hasattr(phone_result, 'status_code') else 400
+            #     else:
+            #         phone_e164_on_miss = phone_result
+            #         return jsonify({
+            #             'status': 'Failure',
+            #             'message': self._build_verification_message(False, False, channel),
+            #             'error_message': 'Phone OTP is invalid.',
+            #             'userId': None,
+            #         })
 
             if verify_email:
                 if self._cognito_is_confirmed(email):
                     return self._verification_response(
                         cursor, email,
-                        phone_verified=bool(phone_verified_email),
+                        phone_verified=False,
                         email_verified=True,
                         channel=channel,
                     )
@@ -615,15 +619,15 @@ class AuthRegistrationService(RegistrationBase):
                     )
                 return self._verification_response(
                     cursor,
-                    phone_verified_email or email,
-                    phone_verified=bool(phone_verified_email),
+                    email,
+                    phone_verified=False,
                     email_verified=True,
                     channel=channel,
                 )
 
             return jsonify({
                 'status': 'Failure',
-                'message': 'Phone and email are not verified.',
+                'message': 'Email is not verified.',
                 'error_message': 'Invalid channel.',
                 'userId': None,
             }), 400
@@ -632,10 +636,11 @@ class AuthRegistrationService(RegistrationBase):
             error_message = e.response.get("Error", {}).get("Message", "Verification failed.")
             req_data = request.get_json() or {}
             email = req_data.get("email")
-            channel = (req_data.get('channel') or 'both').strip().lower()
-            if channel == 'otp':
-                channel = 'email'
-            verify_email = channel in ('email', 'both')
+            channel = 'email'
+            # channel = (req_data.get('channel') or 'both').strip().lower()
+            # if channel == 'otp':
+            #     channel = 'email'
+            verify_email = True
             if (
                 verify_email
                 and email
@@ -645,61 +650,60 @@ class AuthRegistrationService(RegistrationBase):
                 cursor = self.db.cur()
                 return self._verification_response(
                     cursor, email,
-                    phone_verified=bool(phone_verified_email),
+                    phone_verified=False,
                     email_verified=True,
                     channel=channel,
                 )
 
-            if phone_e164_on_miss:
-                cursor = self.db.cur()
-                self._ensure_phone_otp_table(cursor)
-                cursor.execute(
-                    "UPDATE icebreaker.phone_otp_store SET attempts = attempts + 1 WHERE phone_e164 = %s",
-                    (phone_e164_on_miss,),
-                )
-                self.db.conn.commit()
+            # if phone_e164_on_miss:
+            #     cursor = self.db.cur()
+            #     self._ensure_phone_otp_table(cursor)
+            #     cursor.execute(
+            #         "UPDATE icebreaker.phone_otp_store SET attempts = attempts + 1 WHERE phone_e164 = %s",
+            #         (phone_e164_on_miss,),
+            #     )
+            #     self.db.conn.commit()
 
             logging.error("verify_otp error: %s", e)
 
-            if channel == 'phone':
-                return jsonify({
-                    'status': 'Failure',
-                    'message': 'Phone is not verified.',
-                    'error_message': 'Phone OTP is invalid.',
-                    'userId': None,
-                })
-            if channel == 'email':
-                return jsonify({
-                    'status': 'Failure',
-                    'message': 'Email is not verified.',
-                    'error_message': error_message or 'Email OTP is invalid.',
-                    'userId': None,
-                })
-            if channel == 'both' and phone_verified_email:
-                cursor = self.db.cur()
-                self._mark_registration_phone_verified(cursor, phone_verified_email)
-                cursor.execute(
-                    "SELECT userId FROM icebreaker.registration WHERE email = %s",
-                    (phone_verified_email,),
-                )
-                user_row = cursor.fetchone()
-                return jsonify({
-                    'status': 'Failure',
-                    'message': 'Phone is verified but email is not verified.',
-                    'error_message': error_message or 'Email OTP is invalid.',
-                    'userId': user_row[0] if user_row else None,
-                })
+            # if channel == 'phone':
+            #     return jsonify({
+            #         'status': 'Failure',
+            #         'message': 'Phone is not verified.',
+            #         'error_message': 'Phone OTP is invalid.',
+            #         'userId': None,
+            #     })
             return jsonify({
                 'status': 'Failure',
-                'message': 'Phone and email are not verified.',
-                'error_message': error_message or 'Verification failed. Please check your OTP.',
+                'message': 'Email is not verified.',
+                'error_message': error_message or 'Email OTP is invalid.',
                 'userId': None,
             })
+            # if channel == 'both' and phone_verified_email:
+            #     cursor = self.db.cur()
+            #     self._mark_registration_phone_verified(cursor, phone_verified_email)
+            #     cursor.execute(
+            #         "SELECT userId FROM icebreaker.registration WHERE email = %s",
+            #         (phone_verified_email,),
+            #     )
+            #     user_row = cursor.fetchone()
+            #     return jsonify({
+            #         'status': 'Failure',
+            #         'message': 'Phone is verified but email is not verified.',
+            #         'error_message': error_message or 'Email OTP is invalid.',
+            #         'userId': user_row[0] if user_row else None,
+            #     })
+            # return jsonify({
+            #     'status': 'Failure',
+            #     'message': 'Phone and email are not verified.',
+            #     'error_message': error_message or 'Verification failed. Please check your OTP.',
+            #     'userId': None,
+            # })
         except Exception as e:
             logging.error("verify_otp error: %s", e)
             return jsonify({
                 'status': 'Failure',
-                'message': 'Phone and email are not verified.',
+                'message': 'Email is not verified.',
                 'error_message': str(e),
                 'userId': None,
             })
@@ -1142,35 +1146,39 @@ class AuthRegistrationService(RegistrationBase):
         return {"phone_e164": phone_e164, "otp": otp}
 
     def send_phone_otp(self):
-        """Send RingCentral SMS OTP (separate from Cognito email code)."""
-        try:
-            data = request.get_json() or {}
-            country_code = data.get("countryCode")
-            phone_no = data.get("phoneNo")
-            email = data.get("email")
-            if not country_code or not phone_no:
-                return jsonify({
-                    "status": "Failure",
-                    "message": "countryCode and phoneNo are required.",
-                }), 400
-
-            self._send_phone_otp_internal(email, country_code, phone_no)
-            phone_e164 = self._normalize_phone_e164(country_code, phone_no)
-            return jsonify({
-                "status": "Success",
-                "message": "Phone OTP sent via SMS.",
-                "phone_e164": phone_e164,
-            })
-        except ValueError as e:
-            return jsonify({"status": "Failure", "message": str(e)}), 400
-        except FileNotFoundError:
-            return jsonify({
-                "status": "Failure",
-                "message": "RingCentral is not configured.",
-            }), 500
-        except Exception as e:
-            logging.error("send_phone_otp error: %s", e)
-            return jsonify({"status": "Failure", "message": "Failed to send phone OTP."}), 500
+        """Phone OTP sending is disabled; registration is email-only."""
+        return jsonify({
+            "status": "Failure",
+            "message": "Phone OTP is disabled. Register and verify with email only.",
+        }), 400
+        # try:
+        #     data = request.get_json() or {}
+        #     country_code = data.get("countryCode")
+        #     phone_no = data.get("phoneNo")
+        #     email = data.get("email")
+        #     if not country_code or not phone_no:
+        #         return jsonify({
+        #             "status": "Failure",
+        #             "message": "countryCode and phoneNo are required.",
+        #         }), 400
+        #
+        #     self._send_phone_otp_internal(email, country_code, phone_no)
+        #     phone_e164 = self._normalize_phone_e164(country_code, phone_no)
+        #     return jsonify({
+        #         "status": "Success",
+        #         "message": "Phone OTP sent via SMS.",
+        #         "phone_e164": phone_e164,
+        #     })
+        # except ValueError as e:
+        #     return jsonify({"status": "Failure", "message": str(e)}), 400
+        # except FileNotFoundError:
+        #     return jsonify({
+        #         "status": "Failure",
+        #         "message": "RingCentral is not configured.",
+        #     }), 500
+        # except Exception as e:
+        #     logging.error("send_phone_otp error: %s", e)
+        #     return jsonify({"status": "Failure", "message": "Failed to send phone OTP."}), 500
 
     def _normalize_otp(self, otp) -> str:
         return str(otp or "").strip().zfill(6)
@@ -1275,99 +1283,106 @@ class AuthRegistrationService(RegistrationBase):
         return ('verified', link_email)
 
     def verify_phone_otp(self):
-        """Alias for verify_otp (phone first, then email)."""
-        return self.verify_otp()
+        """Phone OTP verification is disabled; registration is email-only."""
+        return jsonify({
+            "status": "Failure",
+            "message": "Phone OTP is disabled. Register and verify with email only.",
+        }), 400
+        # return self.verify_otp()
 
     def resend_otp(self):
-        """Resend OTP by channel: phone (SMS), email (Cognito), or both."""
+        """Resend email OTP. Phone OTP sending/verification is disabled."""
         try:
             data = request.get_json() or {}
             email = self._normalize_email(data.get('email') or '')
-            country_code = (data.get('countryCode') or '').strip()
-            phone_no = (data.get('phoneNo') or '').strip()
-            channel = (data.get('channel') or 'both').strip().lower()
-            if channel == 'otp':
-                channel = 'email'
-
-            if channel not in ('phone', 'email', 'both'):
-                return jsonify({
-                    'status': 'Failure',
-                    'message': 'Invalid channel. Use phone or email.',
-                }), 400
+            # country_code = (data.get('countryCode') or '').strip()
+            # phone_no = (data.get('phoneNo') or '').strip()
+            # Phone OTP sending/verification is disabled; email-only registration.
+            # channel = 'email'
+            # channel = (data.get('channel') or 'both').strip().lower()
+            # if channel == 'otp':
+            #     channel = 'email'
+            #
+            # if channel not in ('phone', 'email', 'both'):
+            #     return jsonify({
+            #         'status': 'Failure',
+            #         'message': 'Invalid channel. Use phone or email.',
+            #     }), 400
 
             cursor = self.db.cur()
             try:
-                if channel == 'phone':
-                    rows = []
-                    if country_code and phone_no:
-                        rows = self._find_registrations_by_phone(cursor, country_code, phone_no)
-                    if not rows and email:
-                        cursor.execute(
-                            """
-                            SELECT email, countryCode, phoneNo, signupType, is_verified
-                            FROM icebreaker.registration
-                            WHERE email = %s
-                            """,
-                            (email,),
-                        )
-                        reg = cursor.fetchone()
-                        if reg and reg[1] and reg[2]:
-                            rows = [reg]
+                # if channel == 'phone':
+                #     rows = []
+                #     if country_code and phone_no:
+                #         rows = self._find_registrations_by_phone(cursor, country_code, phone_no)
+                #     if not rows and email:
+                #         cursor.execute(
+                #             """
+                #             SELECT email, countryCode, phoneNo, signupType, is_verified
+                #             FROM icebreaker.registration
+                #             WHERE email = %s
+                #             """,
+                #             (email,),
+                #         )
+                #         reg = cursor.fetchone()
+                #         if reg and reg[1] and reg[2]:
+                #             rows = [reg]
+                #
+                #     if not rows:
+                #         if not country_code or not phone_no:
+                #             if not email:
+                #                 return jsonify({
+                #                     'status': 'Failure',
+                #                     'message': 'countryCode and phoneNo are required.',
+                #                 }), 400
+                #         return jsonify({'status': 'Failure', 'message': 'Phone number not registered.'}), 404
+                #
+                #     reg = next((row for row in rows if row[4] != 1), None)
+                #     if reg is None:
+                #         return jsonify({'status': 'Failure', 'message': 'Phone is already verified.'}), 400
+                #     email = reg[0]
+                #     country_code = reg[1]
+                #     phone_no = reg[2]
+                #     signup_type = reg[3]
+                #     phone_verified = reg[4] == 1
+                # else:
+                email_regex = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+                if not email_regex.match(email):
+                    return jsonify({'status': 'Failure', 'message': 'Invalid email format.'}), 400
 
-                    if not rows:
-                        if not country_code or not phone_no:
-                            if not email:
-                                return jsonify({
-                                    'status': 'Failure',
-                                    'message': 'countryCode and phoneNo are required.',
-                                }), 400
-                        return jsonify({'status': 'Failure', 'message': 'Phone number not registered.'}), 404
+                domain = email.split("@")[1].lower()
+                if domain.startswith("gmail.") and domain != "gmail.com":
+                    return jsonify({'status': 'Failure', 'message': 'Invalid email format.'}), 400
 
-                    reg = next((row for row in rows if row[4] != 1), None)
-                    if reg is None:
-                        return jsonify({'status': 'Failure', 'message': 'Phone is already verified.'}), 400
-                    email = reg[0]
-                    country_code = reg[1]
-                    phone_no = reg[2]
-                    signup_type = reg[3]
-                    phone_verified = reg[4] == 1
-                else:
-                    email_regex = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-                    if not email_regex.match(email):
-                        return jsonify({'status': 'Failure', 'message': 'Invalid email format.'}), 400
+                cursor.execute(
+                    """
+                    SELECT email, countryCode, phoneNo, signupType, is_verified
+                    FROM icebreaker.registration
+                    WHERE email = %s
+                    """,
+                    (email,),
+                )
+                reg = cursor.fetchone()
+                if not reg:
+                    return jsonify({'status': 'Failure', 'message': 'Email not registered.'}), 404
 
-                    domain = email.split("@")[1].lower()
-                    if domain.startswith("gmail.") and domain != "gmail.com":
-                        return jsonify({'status': 'Failure', 'message': 'Invalid email format.'}), 400
-
-                    cursor.execute(
-                        """
-                        SELECT email, countryCode, phoneNo, signupType, is_verified
-                        FROM icebreaker.registration
-                        WHERE email = %s
-                        """,
-                        (email,),
-                    )
-                    reg = cursor.fetchone()
-                    if not reg:
-                        return jsonify({'status': 'Failure', 'message': 'Email not registered.'}), 404
-
-                    email = reg[0]
-                    country_code = country_code or reg[1]
-                    phone_no = phone_no or reg[2]
-                    signup_type = reg[3]
-                    phone_verified = reg[4] == 1
+                email = reg[0]
+                # country_code = country_code or reg[1]
+                # phone_no = phone_no or reg[2]
+                # signup_type = reg[3]
+                # phone_verified = reg[4] == 1
             finally:
                 cursor.close()
 
-            resend_email = channel in ('email', 'both')
-            resend_phone = channel in ('phone', 'both')
-            shared_otp = self._generate_otp() if (resend_email and resend_phone) else None
+            resend_email = True
+            # resend_phone = channel in ('phone', 'both')
+            # shared_otp = self._generate_otp() if (resend_email and resend_phone) else None
+            shared_otp = None
 
             email_sent = False
             sms_sent = False
-            phone_e164 = None
-            phone_otp = None
+            # phone_e164 = None
+            # phone_otp = None
 
             if resend_email:
                 if self._cognito_is_confirmed(email):
@@ -1385,41 +1400,41 @@ class AuthRegistrationService(RegistrationBase):
                 email_sent = True
                 logging.info("Email OTP resent to %s", email)
 
-            if resend_phone:
-                if phone_verified:
-                    return jsonify({'status': 'Failure', 'message': 'Phone is already verified.'}), 400
-                if signup_type == "social":
-                    return jsonify({
-                        'status': 'Failure',
-                        'message': 'Phone OTP not available for social signup.',
-                    }), 400
-                if not country_code or not phone_no:
-                    return jsonify({'status': 'Failure', 'message': 'Phone number not registered.'}), 400
+            # if resend_phone:
+            #     if phone_verified:
+            #         return jsonify({'status': 'Failure', 'message': 'Phone is already verified.'}), 400
+            #     if signup_type == "social":
+            #         return jsonify({
+            #             'status': 'Failure',
+            #             'message': 'Phone OTP not available for social signup.',
+            #         }), 400
+            #     if not country_code or not phone_no:
+            #         return jsonify({'status': 'Failure', 'message': 'Phone number not registered.'}), 400
+            #
+            #     phone_otp_info = self._send_phone_otp_internal(
+            #         email, country_code, phone_no, otp=shared_otp,
+            #     )
+            #     phone_e164 = phone_otp_info['phone_e164']
+            #     phone_otp = phone_otp_info['otp']
+            #     sms_sent = True
+            #     logging.info("SMS OTP resent to %s for %s", phone_e164, email)
 
-                phone_otp_info = self._send_phone_otp_internal(
-                    email, country_code, phone_no, otp=shared_otp,
-                )
-                phone_e164 = phone_otp_info['phone_e164']
-                phone_otp = phone_otp_info['otp']
-                sms_sent = True
-                logging.info("SMS OTP resent to %s for %s", phone_e164, email)
-
-            if email_sent and sms_sent:
-                message = 'Email and SMS OTP resent successfully.'
-            elif sms_sent:
-                message = 'SMS OTP resent successfully.'
-            else:
-                message = 'Email OTP resent successfully.'
+            # if email_sent and sms_sent:
+            #     message = 'Email and SMS OTP resent successfully.'
+            # elif sms_sent:
+            #     message = 'SMS OTP resent successfully.'
+            # else:
+            message = 'Email OTP resent successfully.'
 
             response = {
                 'status': 'Success',
                 'message': message,
                 'email_sent': email_sent,
                 'sms_sent': sms_sent,
-                'phoneotp': phone_otp,
+                # 'phoneotp': phone_otp,
             }
-            if email_sent and sms_sent:
-                response['sharedOtp'] = True
+            # if email_sent and sms_sent:
+            #     response['sharedOtp'] = True
 
             return jsonify(response)
 

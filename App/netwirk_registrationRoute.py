@@ -55,26 +55,27 @@ def resend_user_otp():
         return "Error"
 
 
-@registrationRoute.route('/send_phone_otp', methods=['POST'])
-@swag_from('registration/send_phone_otp.yml')
-def send_phone_otp_now():
-    register = registration()
-    try:
-        return register.send_phone_otp()
-    except Exception as e:
-        print(str(e))
-        return "Error"
-
-
-@registrationRoute.route('/verify_phone_otp', methods=['POST'])
-@swag_from('registration/verify_phone_otp.yml')
-def verify_phone_otp_now():
-    register = registration()
-    try:
-        return register.verify_phone_otp()
-    except Exception as e:
-        print(str(e))
-        return "Error"
+# Phone OTP sending/verification is disabled; register with email only.
+# @registrationRoute.route('/send_phone_otp', methods=['POST'])
+# @swag_from('registration/send_phone_otp.yml')
+# def send_phone_otp_now():
+#     register = registration()
+#     try:
+#         return register.send_phone_otp()
+#     except Exception as e:
+#         print(str(e))
+#         return "Error"
+#
+#
+# @registrationRoute.route('/verify_phone_otp', methods=['POST'])
+# @swag_from('registration/verify_phone_otp.yml')
+# def verify_phone_otp_now():
+#     register = registration()
+#     try:
+#         return register.verify_phone_otp()
+#     except Exception as e:
+#         print(str(e))
+#         return "Error"
 
 
 @registrationRoute.route('/checkPhoneNumberExists', methods=['POST'])

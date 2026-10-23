@@ -4,6 +4,7 @@ from unittest.mock import patch
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
 from Model.auth_client import get_user, get_users_batch
+from Model.auth_db import DualWriteCursor, is_write_sql, rewrite_auth_sql
 from Model.auth_service import AuthRegistrationService
 from services.catalog import owner_of
 
@@ -50,3 +51,33 @@ def test_auth_client_posts_to_auth_service(monkeypatch):
 
 def test_auth_client_batch_empty_list():
     assert get_users_batch([]) == []
+
+
+def test_rewrite_auth_sql_only_auth_tables():
+    sql = (
+        "SELECT r.userId, p.profilePic FROM icebreaker.registration r "
+        "JOIN icebreaker.profile p ON r.userId = p.userId"
+    )
+    rewritten = rewrite_auth_sql(sql, "vyb_auth")
+    assert "vyb_auth.registration" in rewritten
+    assert "icebreaker.profile" in rewritten
+    assert rewrite_auth_sql(sql, "icebreaker") == sql
+
+
+def test_dual_write_cursor_mirrors_updates():
+    class Fake:
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, sql, params=None):
+            self.calls.append((sql, params))
+
+    fake = Fake()
+    cursor = DualWriteCursor(fake, "vyb_auth")
+    cursor.execute(
+        "UPDATE icebreaker.registration SET deviceToken = NULL WHERE userId = %s",
+        (9,),
+    )
+    assert fake.calls[0][0] == "UPDATE vyb_auth.registration SET deviceToken = NULL WHERE userId = %s"
+    assert fake.calls[1][0] == "UPDATE icebreaker.registration SET deviceToken = NULL WHERE userId = %s"
+    assert is_write_sql("SELECT 1") is False

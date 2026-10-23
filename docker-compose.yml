@@ -42,6 +42,11 @@ services:
     environment:
       <<: *env
       SERVICE_NAME: auth
+      AUTH_DB_HOST: ${AUTH_DB_HOST:-}
+      AUTH_DB_PORT: ${AUTH_DB_PORT:-3306}
+      AUTH_DB_USER: ${AUTH_DB_USER:-}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-}
+      AUTH_DB_NAME: ${AUTH_DB_NAME:-icebreaker}
 
   profile:
     <<: *service

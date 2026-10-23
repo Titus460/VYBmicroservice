@@ -94,13 +94,6 @@ services:
       <<: *env
       SERVICE_NAME: recsys
 
-  legacy:
-    <<: *service
-    command: ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "services.legacy_app:app"]
-    environment:
-      <<: *env
-      SERVICE_NAME: legacy
-
   gateway:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -114,4 +107,3 @@ services:
       - geo
       - social
       - recsys
-      - legacy

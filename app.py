@@ -46,7 +46,7 @@ try:
     from flask_jwt_extended import JWTManager
     from flasgger import LazyJSONEncoder, Swagger
     from metrics import metrics_response
-    from services.catalog import ALL_SERVICES, serves
+    from services.catalog import ALL_SERVICES, SERVICES, SWAGGER_HOST, serves
 
     SERVICE_NAME = os.getenv("SERVICE_NAME", "").strip().lower() or None
     if SERVICE_NAME and SERVICE_NAME not in ALL_SERVICES:
@@ -94,7 +94,7 @@ try:
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=120)
     JWTManager(app)
 
-    _route_services = tuple(ALL_SERVICES) if SERVICE_NAME in (None, "legacy") else (SERVICE_NAME,)
+    _route_services = tuple(SERVICES) if SERVICE_NAME in (None, SWAGGER_HOST) else (SERVICE_NAME,)
     for _svc in _route_services:
         _route_mod = importlib.import_module(f"App.{_svc}_routes")
         for _bp in _route_mod.BLUEPRINTS:
@@ -116,7 +116,7 @@ try:
     }
 
     swagger = Swagger(app)
-    if SERVICE_NAME == "legacy":
+    if SERVICE_NAME in (None, SWAGGER_HOST):
         with app.app_context():
             swagger.get_apispecs("apispec_1")
 
@@ -127,7 +127,6 @@ try:
                 "status": "ok",
                 "service": os.getenv("SERVICE_NAME") or "all",
                 "swagger": "/swagger",
-                "offline_feed_dashboard": "/offline-feed-dashboard",
             }
         )
 
@@ -138,25 +137,6 @@ try:
     @app.route("/healthz")
     def healthz():
         return jsonify({"status": "ok"})
-
-    @app.route("/offline-feed-dashboard")
-    def offline_feed_dashboard():
-        """Local HTML dashboard for offline feed ranking (in-memory)."""
-        from Model.recsys.offline_feed_dashboard import render_dashboard_html
-
-        limit = int(request.args.get("limit", 100))
-        return Response(render_dashboard_html(limit=limit), mimetype="text/html")
-
-    @app.route("/offline-feed-dashboard.json")
-    def offline_feed_dashboard_json():
-        from Model.recsys.offline_feed_dashboard import (
-            dashboard_summary,
-            list_offline_feed_events,
-        )
-
-        limit = int(request.args.get("limit", 100))
-        events = list_offline_feed_events(limit=limit)
-        return jsonify({"summary": dashboard_summary(events), "events": events})
 
     if SERVICE_NAME:
         kept_rules = [

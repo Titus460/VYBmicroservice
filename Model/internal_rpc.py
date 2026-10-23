@@ -8,7 +8,7 @@ call back into the same Flask server would deadlock.
 import os
 from urllib.parse import urlparse
 
-_COMPOSE_HOSTS = frozenset({"auth", "social", "geo", "profile", "recsys", "legacy"})
+_COMPOSE_HOSTS = frozenset({"auth", "social", "geo", "profile", "recsys"})
 
 
 def in_compose():

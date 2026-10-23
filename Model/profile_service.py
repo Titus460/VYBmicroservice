@@ -11,6 +11,7 @@ import hmac
 import base64
 import hashlib
 from Model.netwirk_DB import DB
+from Model.profile_db import ProfileDB
 import os
 import qrcode
 from PIL import Image, ImageOps, ImageStat, ImageFilter
@@ -172,6 +173,79 @@ from Model.common_base import ProfileBase, profile
 
 
 class ProfileService(ProfileBase):
+    def __init__(self):
+        super().__init__()
+        self.db = ProfileDB()
+
+    def _require_internal_key(self):
+        expected = os.getenv("INTERNAL_API_KEY", "").strip()
+        if not expected:
+            return None
+        provided = request.headers.get("X-Internal-Key", "")
+        if provided != expected:
+            return jsonify({"Status": "Failure", "Message": "Unauthorized"}), 401
+        return None
+
+    def _row_to_profile(self, cursor, row):
+        if not row:
+            return None
+        columns = [col[0] for col in cursor.description]
+        return dict(zip(columns, row))
+
+    def get_internal_profile(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            if user_id in (None, ""):
+                return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
+            cursor = self.db.cur()
+            cursor.execute(
+                "SELECT * FROM icebreaker.profile WHERE userId = %s",
+                (int(user_id),),
+            )
+            profile_row = self._row_to_profile(cursor, cursor.fetchone())
+            cursor.execute(
+                "SELECT loginUserId, picture_urls, IsProfilePicture FROM icebreaker.userPictures WHERE loginUserId = %s",
+                (int(user_id),),
+            )
+            pictures = [
+                {"loginUserId": r[0], "picture_urls": r[1], "IsProfilePicture": r[2]}
+                for r in cursor.fetchall()
+            ]
+            cursor.close()
+            if not profile_row:
+                return jsonify({"Status": "Failure", "Message": "Profile not found"}), 404
+            return jsonify(
+                {"Status": "Success", "profile": profile_row, "pictures": pictures}
+            ), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
+    def get_internal_profiles_batch(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_ids = data.get("userIds") or []
+            if not isinstance(user_ids, list) or not user_ids:
+                return jsonify({"Status": "Failure", "Message": "userIds must be a non-empty list"}), 400
+            ids = [int(uid) for uid in user_ids]
+            cursor = self.db.cur()
+            placeholders = ",".join(["%s"] * len(ids))
+            cursor.execute(
+                f"SELECT * FROM icebreaker.profile WHERE userId IN ({placeholders})",
+                tuple(ids),
+            )
+            profiles = [self._row_to_profile(cursor, row) for row in cursor.fetchall()]
+            cursor.close()
+            return jsonify({"Status": "Success", "profiles": profiles}), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
     def create_profile_new(self):
         try:
             data = request.get_json()

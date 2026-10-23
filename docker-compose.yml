@@ -28,6 +28,7 @@ x-env: &env
   VIBR_CONFIG_FILE: /var/run/secrets/vyb/vibr_config.json
   FIREBASE_SERVICE_ACCOUNT_FILE: /var/run/secrets/vyb/firebase-admin.json
   AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth:8000}
+  PROFILE_SERVICE_URL: ${PROFILE_SERVICE_URL:-http://profile:8000}
   INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
 
 services:
@@ -54,6 +55,11 @@ services:
     environment:
       <<: *env
       SERVICE_NAME: profile
+      PROFILE_DB_HOST: ${PROFILE_DB_HOST:-}
+      PROFILE_DB_PORT: ${PROFILE_DB_PORT:-3306}
+      PROFILE_DB_USER: ${PROFILE_DB_USER:-}
+      PROFILE_DB_PASSWORD: ${PROFILE_DB_PASSWORD:-}
+      PROFILE_DB_NAME: ${PROFILE_DB_NAME:-icebreaker}
 
   geo:
     <<: *service

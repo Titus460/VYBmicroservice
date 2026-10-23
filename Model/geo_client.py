@@ -25,15 +25,15 @@ def _headers():
     return headers
 
 
-def _lookup_incognito_local(user_id):
+def _geo_service():
     from Model.geo_service import GeoService
 
-    return GeoService().lookup_incognito(user_id)
+    return GeoService()
 
 
 def get_incognito(user_id):
     if not should_http(_geo_base_url()):
-        return _lookup_incognito_local(user_id)
+        return _geo_service().lookup_incognito(user_id)
     response = requests.post(
         f"{_geo_base_url()}/netwirkProfileRoute/internal/get_incognito",
         json={"userId": user_id},
@@ -45,3 +45,39 @@ def get_incognito(user_id):
     if body.get("Status") != "Success":
         return None
     return body
+
+
+def get_location(user_id):
+    if not should_http(_geo_base_url()):
+        return _geo_service().lookup_location(user_id)
+    response = requests.post(
+        f"{_geo_base_url()}/netwirkProfileRoute/internal/get_location",
+        json={"userId": user_id},
+        headers=_headers(),
+        timeout=TIMEOUT_SECONDS,
+    )
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    body = response.json()
+    if body.get("Status") != "Success":
+        return None
+    return body
+
+
+def get_locations_batch(user_ids):
+    if not user_ids:
+        return []
+    if not should_http(_geo_base_url()):
+        return _geo_service().lookup_locations_batch(user_ids)
+    response = requests.post(
+        f"{_geo_base_url()}/netwirkProfileRoute/internal/get_locations_batch",
+        json={"userIds": list(user_ids)},
+        headers=_headers(),
+        timeout=TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    body = response.json()
+    if body.get("Status") != "Success":
+        return []
+    return body.get("locations") or []

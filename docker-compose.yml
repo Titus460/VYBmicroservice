@@ -69,6 +69,11 @@ services:
     environment:
       <<: *env
       SERVICE_NAME: geo
+      GEO_DB_HOST: ${GEO_DB_HOST:-}
+      GEO_DB_PORT: ${GEO_DB_PORT:-3306}
+      GEO_DB_USER: ${GEO_DB_USER:-}
+      GEO_DB_PASSWORD: ${GEO_DB_PASSWORD:-}
+      GEO_DB_NAME: ${GEO_DB_NAME:-icebreaker}
 
   social:
     <<: *service

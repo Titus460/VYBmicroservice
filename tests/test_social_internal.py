@@ -12,6 +12,8 @@ from services.catalog import owner_of
 def test_internal_social_paths_belong_to_social():
     assert owner_of("/netwirkProfileRoute/internal/get_social") == "social"
     assert owner_of("/netwirkProfileRoute/internal/get_connection") == "social"
+    assert owner_of("/netwirkProfileRoute/internal/hide_offline") == "social"
+    assert owner_of("/netwirkProfileRoute/internal/later_remaining") == "social"
 
 
 def test_social_internal_key_rejects_wrong_header(monkeypatch):

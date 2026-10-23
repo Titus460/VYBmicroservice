@@ -1,0 +1,29 @@
+tags:
+- netwirkProfile
+summary: Internal batch location lookup
+description: |
+  Used by other microservices instead of querying icebreaker.location in bulk.
+  Not for the mobile app. Send X-Internal-Key when INTERNAL_API_KEY is set.
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      required:
+        - userIds
+      properties:
+        userIds:
+          type: array
+          items:
+            type: integer
+          example: [1, 2]
+responses:
+  200:
+    description: Success
+  400:
+    description: userIds missing
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

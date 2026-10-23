@@ -67,3 +67,41 @@ def get_connection(user_id, other_user_id):
     if body.get("Status") != "Success":
         return None
     return body
+
+
+def _social_service():
+    from Model.social_service import SocialService
+
+    return SocialService()
+
+
+def hide_offline(user_id, target_user_id, hide_duration):
+    if not should_http(_social_base_url()):
+        return _social_service().hide_offline_user(user_id, target_user_id, hide_duration)
+    response = requests.post(
+        f"{_social_base_url()}/netwirkProfileRoute/internal/hide_offline",
+        json={
+            "userId": user_id,
+            "targetUserId": target_user_id,
+            "hideDuration": hide_duration,
+        },
+        headers=_headers(),
+        timeout=TIMEOUT_SECONDS,
+    )
+    return response.json(), response.status_code
+
+
+def later_remaining(user_id):
+    if not should_http(_social_base_url()):
+        return _social_service().lookup_later_remaining(user_id)
+    response = requests.post(
+        f"{_social_base_url()}/netwirkProfileRoute/internal/later_remaining",
+        json={"userId": user_id},
+        headers=_headers(),
+        timeout=TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    body = response.json()
+    if body.get("Status") != "Success":
+        return None
+    return body

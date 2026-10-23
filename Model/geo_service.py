@@ -6,11 +6,13 @@ from flask import app, jsonify, send_file, Response, session, request
 from flask_jwt_extended import create_access_token
 import requests
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 import boto3
 import hmac
 import base64
 import hashlib
 from Model.netwirk_DB import DB
+from Model.geo_db import GeoDB
 import os
 import qrcode
 from PIL import Image, ImageOps, ImageStat, ImageFilter
@@ -172,6 +174,32 @@ from Model.common_base import ProfileBase, profile
 
 
 class GeoService(ProfileBase):
+    def __init__(self):
+        super().__init__()
+        self.db = GeoDB()
+
+    def _json_safe(self, value):
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            try:
+                return value.decode("utf-8")
+            except UnicodeDecodeError:
+                return base64.b64encode(value).decode("ascii")
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        if isinstance(value, set):
+            return list(value)
+        return value
+
+    def _row_to_dict(self, cursor, row):
+        if not row:
+            return None
+        columns = [col[0] for col in cursor.description]
+        return {col: self._json_safe(val) for col, val in zip(columns, row)}
+
     def _require_internal_key(self):
         expected = os.getenv("INTERNAL_API_KEY", "").strip()
         if not expected:
@@ -195,8 +223,80 @@ class GeoService(ProfileBase):
             "Status": "Success",
             "userId": user_id,
             "incognito": incognito,
-            "cognitoTime": row[1] if incognito else None,
+            "cognitoTime": self._json_safe(row[1]) if incognito else None,
         }
+
+    def lookup_location(self, user_id):
+        user_id = int(user_id)
+        cursor = self.db.cur()
+        cursor.execute(
+            "SELECT * FROM icebreaker.location WHERE userId = %s",
+            (user_id,),
+        )
+        location = self._row_to_dict(cursor, cursor.fetchone())
+        cursor.execute(
+            "SELECT * FROM icebreaker.radius WHERE userId = %s",
+            (user_id,),
+        )
+        radius = self._row_to_dict(cursor, cursor.fetchone())
+        cursor.execute(
+            "SELECT * FROM icebreaker.user_live_location_offline WHERE user_id = %s",
+            (user_id,),
+        )
+        live_offline = self._row_to_dict(cursor, cursor.fetchone())
+        cursor.close()
+        return {
+            "Status": "Success",
+            "userId": user_id,
+            "location": location,
+            "radius": radius,
+            "liveOffline": live_offline,
+        }
+
+    def lookup_locations_batch(self, user_ids):
+        ids = [int(uid) for uid in user_ids]
+        if not ids:
+            return []
+        cursor = self.db.cur()
+        placeholders = ",".join(["%s"] * len(ids))
+        cursor.execute(
+            f"SELECT * FROM icebreaker.location WHERE userId IN ({placeholders})",
+            tuple(ids),
+        )
+        locations = [self._row_to_dict(cursor, row) for row in cursor.fetchall()]
+        cursor.close()
+        return locations
+
+    def get_internal_location(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            if user_id in (None, ""):
+                return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
+            body = self.lookup_location(user_id)
+            if not body.get("location") and not body.get("radius") and not body.get("liveOffline"):
+                return jsonify({"Status": "Failure", "Message": "Location not found"}), 404
+            return jsonify(body), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
+    def get_internal_locations_batch(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_ids = data.get("userIds") or []
+            if not isinstance(user_ids, list) or not user_ids:
+                return jsonify({"Status": "Failure", "Message": "userIds must be a non-empty list"}), 400
+            return jsonify(
+                {"Status": "Success", "locations": self.lookup_locations_batch(user_ids)}
+            ), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
 
     def get_internal_incognito(self):
         denied = self._require_internal_key()

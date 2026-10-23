@@ -57,6 +57,7 @@ def test_profile_dual_write_mirrors_updates():
 
 
 def test_profile_client_posts_to_profile_service(monkeypatch):
+    monkeypatch.setenv("SERVICE_NAME", "geo")
     monkeypatch.setenv("PROFILE_SERVICE_URL", "http://profile:8000")
     monkeypatch.setenv("INTERNAL_API_KEY", "secret")
 

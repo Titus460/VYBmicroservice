@@ -1,5 +1,5 @@
 tags:
-- geo-internal
+- netwirkProfile
 summary: Internal incognito status for one user
 description: |
   Used by other microservices instead of querying icebreaker.location.

@@ -1,0 +1,37 @@
+tags:
+- social-internal
+summary: Internal hide-from-offline-feed write
+description: |
+  Used by recsys instead of writing icebreaker.hidden_users_1day / hidden_users_1month.
+  Not for the mobile app. Send X-Internal-Key when INTERNAL_API_KEY is set.
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      required:
+        - userId
+        - targetUserId
+        - hideDuration
+      properties:
+        userId:
+          type: integer
+          example: 1
+        targetUserId:
+          type: integer
+          example: 2
+        hideDuration:
+          type: string
+          example: 1_day
+responses:
+  200:
+    description: Success
+  400:
+    description: Invalid payload
+  401:
+    description: Unauthorized
+  429:
+    description: Later limit reached
+  500:
+    description: Internal server error

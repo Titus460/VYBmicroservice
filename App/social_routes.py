@@ -235,6 +235,24 @@ def internal_get_connection_now():
     except Exception:
         return "Error"
 
+@socialServiceRoute.route('/internal/hide_offline', methods=['POST'])
+@swag_from('netwirkProfile/internal_hide_offline.yml')
+def internal_hide_offline_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_hide_offline()
+    except Exception:
+        return "Error"
+
+@socialServiceRoute.route('/internal/later_remaining', methods=['POST'])
+@swag_from('netwirkProfile/internal_later_remaining.yml')
+def internal_later_remaining_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_later_remaining()
+    except Exception:
+        return "Error"
+
 @socialServiceRoute.route('/get_liked_by_me_user_list', methods=['POST'])
 @swag_from('netwirkProfile/get_liked_by_me_user_list.yml')
 def get_liked_by_me_user_list_now():

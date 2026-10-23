@@ -5,7 +5,8 @@ import time
 from flask import app, jsonify, send_file, Response, session, request
 from flask_jwt_extended import create_access_token
 import requests
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta
+from decimal import Decimal
 import boto3
 import hmac
 import base64
@@ -186,11 +187,27 @@ class ProfileService(ProfileBase):
             return jsonify({"Status": "Failure", "Message": "Unauthorized"}), 401
         return None
 
+    def _json_safe(self, value):
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            try:
+                return value.decode("utf-8")
+            except UnicodeDecodeError:
+                return base64.b64encode(value).decode("ascii")
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        if isinstance(value, set):
+            return list(value)
+        return value
+
     def _row_to_profile(self, cursor, row):
         if not row:
             return None
         columns = [col[0] for col in cursor.description]
-        return dict(zip(columns, row))
+        return {col: self._json_safe(val) for col, val in zip(columns, row)}
 
     def get_internal_profile(self):
         denied = self._require_internal_key()
@@ -212,7 +229,11 @@ class ProfileService(ProfileBase):
                 (int(user_id),),
             )
             pictures = [
-                {"loginUserId": r[0], "picture_urls": r[1], "IsProfilePicture": r[2]}
+                {
+                    "loginUserId": self._json_safe(r[0]),
+                    "picture_urls": self._json_safe(r[1]),
+                    "IsProfilePicture": self._json_safe(r[2]),
+                }
                 for r in cursor.fetchall()
             ]
             cursor.close()

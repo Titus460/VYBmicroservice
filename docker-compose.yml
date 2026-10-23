@@ -27,6 +27,8 @@ x-env: &env
   VIBR_REGISTRATION_CONFIG_FILE: /var/run/secrets/vyb/vibr_registration_config.json
   VIBR_CONFIG_FILE: /var/run/secrets/vyb/vibr_config.json
   FIREBASE_SERVICE_ACCOUNT_FILE: /var/run/secrets/vyb/firebase-admin.json
+  AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth:8000}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
 
 services:
   redis:
@@ -40,6 +42,11 @@ services:
     environment:
       <<: *env
       SERVICE_NAME: auth
+      AUTH_DB_HOST: ${AUTH_DB_HOST:-}
+      AUTH_DB_PORT: ${AUTH_DB_PORT:-3306}
+      AUTH_DB_USER: ${AUTH_DB_USER:-}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-}
+      AUTH_DB_NAME: ${AUTH_DB_NAME:-icebreaker}
 
   profile:
     <<: *service

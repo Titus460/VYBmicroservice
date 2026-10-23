@@ -300,6 +300,132 @@ class SocialService(ProfileBase):
         except Exception as e:
             return jsonify({"Status": "Failure", "Message": str(e)}), 500
 
+    LATER_LIMIT = 3
+
+    def lookup_later_remaining(self, user_id):
+        user_id = int(user_id)
+        cursor = self.db.cur()
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM icebreaker.hidden_users_1day
+            WHERE userId = %s
+            AND hiddenAt >= NOW() - INTERVAL 10 HOUR
+            """,
+            (user_id,),
+        )
+        used_count = cursor.fetchone()[0]
+        cursor.close()
+        return {
+            "Status": "Success",
+            "user_id": user_id,
+            "later_remaining": max(0, self.LATER_LIMIT - used_count),
+        }
+
+    def hide_offline_user(self, user_id, target_user_id, hide_duration):
+        user_id = int(user_id)
+        target_user_id = int(target_user_id)
+        if hide_duration not in ("1_day", "1_month"):
+            return {
+                "Status": "Failure",
+                "Message": "Invalid hide_duration. Must be one of: 1_day, 1_month",
+            }, 400
+        cursor = self.db.cur()
+        try:
+            if hide_duration == "1_day":
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) FROM icebreaker.hidden_users_1day
+                    WHERE userId = %s
+                    AND hiddenAt >= NOW() - INTERVAL 10 HOUR
+                    """,
+                    (user_id,),
+                )
+                used_count = cursor.fetchone()[0]
+                if used_count >= self.LATER_LIMIT:
+                    return {
+                        "Status": "Failure",
+                        "Message": "'Later' limit reached. You can use 'later' 3 times per 10 hours.",
+                        "later_remaining": 0,
+                    }, 429
+                cursor.execute(
+                    """
+                    INSERT INTO icebreaker.hidden_users_1day
+                        (userId, hiddenUserId, hiddenAt, expiresAt)
+                    VALUES (%s, %s, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY))
+                    ON DUPLICATE KEY UPDATE
+                        hiddenAt = NOW(),
+                        expiresAt = DATE_ADD(NOW(), INTERVAL 1 DAY)
+                    """,
+                    (user_id, target_user_id),
+                )
+                self.db.conn.commit()
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) FROM icebreaker.hidden_users_1day
+                    WHERE userId = %s
+                    AND hiddenAt >= NOW() - INTERVAL 10 HOUR
+                    """,
+                    (user_id,),
+                )
+                used_after = cursor.fetchone()[0]
+                return {
+                    "Status": "Success",
+                    "Message": "User hidden from your list",
+                    "later_remaining": self.LATER_LIMIT - used_after,
+                }, 200
+            cursor.execute(
+                """
+                INSERT INTO icebreaker.hidden_users_1month
+                    (userId, hiddenUserId, hiddenAt, expiresAt)
+                VALUES (%s, %s, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))
+                ON DUPLICATE KEY UPDATE
+                    hiddenAt = NOW(),
+                    expiresAt = DATE_ADD(NOW(), INTERVAL 1 MONTH)
+                """,
+                (user_id, target_user_id),
+            )
+            self.db.conn.commit()
+            return {
+                "Status": "Success",
+                "Message": "User hidden from your list for 1 month",
+            }, 200
+        finally:
+            cursor.close()
+
+    def get_internal_later_remaining(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            if user_id in (None, ""):
+                return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
+            return jsonify(self.lookup_later_remaining(user_id)), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
+    def get_internal_hide_offline(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            target_user_id = data.get("targetUserId")
+            hide_duration = data.get("hideDuration")
+            if user_id in (None, "") or target_user_id in (None, "") or not hide_duration:
+                return jsonify(
+                    {
+                        "Status": "Failure",
+                        "Message": "userId, targetUserId and hideDuration are required",
+                    }
+                ), 400
+            body, status = self.hide_offline_user(user_id, target_user_id, hide_duration)
+            return jsonify(body), status
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
     def confirmNetwirkAPI(self):
         try:
             cursor = self.db.cur()

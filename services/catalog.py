@@ -76,6 +76,8 @@ SERVICES = {
         f"{PROFILE}/usercheckinSendNotification_radius",
         f"{PROFILE}/user_live_location_offline",
         f"{PROFILE}/internal/get_incognito",
+        f"{PROFILE}/internal/get_location",
+        f"{PROFILE}/internal/get_locations_batch",
     ],
     "social": [
         f"{PROFILE}/handle_send_wave_new",
@@ -102,6 +104,8 @@ SERVICES = {
         f"{PROFILE}/get_liked_by_me_user_list",
         f"{PROFILE}/internal/get_social",
         f"{PROFILE}/internal/get_connection",
+        f"{PROFILE}/internal/hide_offline",
+        f"{PROFILE}/internal/later_remaining",
     ],
     "recsys": [
         f"{PROFILE}/get_user_list_offline",

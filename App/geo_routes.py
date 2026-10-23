@@ -205,4 +205,22 @@ def internal_get_incognito_now():
     try:
         return netwirkProfile.get_internal_incognito()
     except Exception:
+        return "Error"
+
+@geoServiceRoute.route('/internal/get_location', methods=['POST'])
+@swag_from('netwirkProfile/internal_get_location.yml')
+def internal_get_location_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_location()
+    except Exception:
+        return "Error"
+
+@geoServiceRoute.route('/internal/get_locations_batch', methods=['POST'])
+@swag_from('netwirkProfile/internal_get_locations_batch.yml')
+def internal_get_locations_batch_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_locations_batch()
+    except Exception:
         return "Error" 

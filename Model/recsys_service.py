@@ -11,6 +11,7 @@ import hmac
 import base64
 import hashlib
 from Model.netwirk_DB import DB
+from Model.social_client import hide_offline, later_remaining
 import os
 import qrcode
 from PIL import Image, ImageOps, ImageStat, ImageFilter
@@ -1272,88 +1273,13 @@ class RecsysService(ProfileBase):
                     "Message": f"Invalid hide_duration. Must be one of: {', '.join(VALID_DURATIONS)}"
                 }), 400
 
-            cursor = self.db.cur()
-
-            if hide_duration == '1_day':
-                LATER_LIMIT = 3
-
-                # Count hides within the last 10 hours (rolling window)
-                cursor.execute("""
-                    SELECT COUNT(*) FROM icebreaker.hidden_users_1day
-                    WHERE userId = %s
-                    AND hiddenAt >= NOW() - INTERVAL 10 HOUR
-                """, (user_id,))
-                used_count = cursor.fetchone()[0]
-
-                if used_count >= LATER_LIMIT:
-                    # Fetch when the oldest of the 3 will expire, so client knows when slot reopens
-                    cursor.execute("""
-                        SELECT MIN(hiddenAt) FROM (
-                            SELECT hiddenAt FROM icebreaker.hidden_users_1day
-                            WHERE userId = %s
-                            AND hiddenAt >= NOW() - INTERVAL 10 HOUR
-                            ORDER BY hiddenAt ASC
-                            LIMIT 3
-                        ) AS recent
-                    """, (user_id,))
-                    oldest_hidden_at = cursor.fetchone()[0]
-
-                    return jsonify({
-                        "Status": "Failure",
-                        "Message": "'Later' limit reached. You can use 'later' 3 times per 10 hours.",
-                        "later_remaining": 0,
-                        # "retry_after": str(oldest_hidden_at)  # oldest slot reopens after 10hrs from this
-                    }), 429
-
-                cursor.execute("""
-                    INSERT INTO icebreaker.hidden_users_1day
-                        (userId, hiddenUserId, hiddenAt, expiresAt)
-                    VALUES (%s, %s, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY))
-                    ON DUPLICATE KEY UPDATE
-                        hiddenAt = NOW(),
-                        expiresAt = DATE_ADD(NOW(), INTERVAL 1 DAY)
-                """, (user_id, target_user_id))
-
-                self.on_hide(cursor, user_id, target_user_id, recsys_action="hide_1_day")
-
-
-                self.db.conn.commit()
-
-                # Re-count after insert so remaining is always accurate
-                cursor.execute("""
-                    SELECT COUNT(*) FROM icebreaker.hidden_users_1day
-                    WHERE userId = %s
-                    AND hiddenAt >= NOW() - INTERVAL 10 HOUR
-                """, (user_id,))
-                used_count_after = cursor.fetchone()[0]
-                later_remaining = LATER_LIMIT - used_count_after
-
+            body, status = hide_offline(user_id, target_user_id, hide_duration)
+            if status == 200:
+                cursor = self.db.cur()
+                action = "hide_1_day" if hide_duration == "1_day" else "hide_1_month"
+                self.on_hide(cursor, user_id, target_user_id, recsys_action=action)
                 self._invalidate_offline_feed_cache(user_id)
-                return jsonify({
-                    "Status": "Success",
-                    "Message": "User hidden from your list",
-                    "later_remaining": later_remaining
-                })
-
-            elif hide_duration == '1_month':
-                cursor.execute("""
-                    INSERT INTO icebreaker.hidden_users_1month
-                        (userId, hiddenUserId, hiddenAt, expiresAt)
-                    VALUES (%s, %s, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))
-                    ON DUPLICATE KEY UPDATE
-                        hiddenAt = NOW(),
-                        expiresAt = DATE_ADD(NOW(), INTERVAL 1 MONTH)
-                """, (user_id, target_user_id))
-
-                self.on_hide(cursor, user_id, target_user_id, recsys_action="hide_1_month")
-
-                self.db.conn.commit()
-
-                self._invalidate_offline_feed_cache(user_id)
-                return jsonify({
-                    "Status": "Success",
-                    "Message": "User hidden from your list for 1 month"
-                })
+            return jsonify(body), status
 
         except KeyError as e:
             return jsonify({"Status": "Failure", "Message": f"Missing field: {str(e)}"}), 400
@@ -1370,42 +1296,11 @@ class RecsysService(ProfileBase):
         try:
             data = request.get_json()
             user_id = int(data['userId'])
-
-            LATER_LIMIT = 3
-
-            cursor = self.db.cur()
-
-            # Rolling 10-hour window
-            cursor.execute("""
-                SELECT COUNT(*) FROM icebreaker.hidden_users_1day
-                WHERE userId = %s
-                AND hiddenAt >= NOW() - INTERVAL 10 HOUR
-            """, (user_id,))
-            used_count = cursor.fetchone()[0]
-            remaining = max(0, LATER_LIMIT - used_count)
-
-            # Tell the client when the next slot reopens
-            next_available_at = None
-            if remaining == 0:
-                cursor.execute("""
-                    SELECT MIN(hiddenAt) FROM (
-                        SELECT hiddenAt FROM icebreaker.hidden_users_1day
-                        WHERE userId = %s
-                        AND hiddenAt >= NOW() - INTERVAL 10 HOUR
-                        ORDER BY hiddenAt ASC
-                        LIMIT 3
-                    ) AS recent
-                """, (user_id,))
-                oldest = cursor.fetchone()[0]
-                if oldest:
-                    next_available_at = str(oldest)  # client adds 10hrs to this
-
-            return jsonify({
-                "Status": "Success",
-                "user_id": user_id,
-                "later_remaining": remaining,
-                # "next_available_at": next_available_at  # null if slots are available
-            })
+            body = later_remaining(user_id) or {
+                "Status": "Failure",
+                "Message": "Could not load later remaining",
+            }
+            return jsonify(body)
 
         except KeyError as e:
             return jsonify({"Status": "Failure", "Message": f"Missing field: {str(e)}"}), 400

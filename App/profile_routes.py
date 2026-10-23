@@ -214,6 +214,24 @@ def send_fcm_with_rest_new_user_dummysilent_now():
         # Return JSON error with 500 status
         return {"status": "error", "message": str(e)}, 500
 
+@profileServiceRoute.route('/internal/get_profile', methods=['POST'])
+@swag_from('netwirkProfile/internal_get_profile.yml')
+def internal_get_profile_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_profile()
+    except Exception:
+        return "Error"
+
+@profileServiceRoute.route('/internal/get_profiles_batch', methods=['POST'])
+@swag_from('netwirkProfile/internal_get_profiles_batch.yml')
+def internal_get_profiles_batch_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_profiles_batch()
+    except Exception:
+        return "Error"
+
 @profileServiceRoute.route('/add_to_waitlist', methods=['POST'])
 @swag_from('netwirkProfile/add_to_waitlist.yml')
 def add_to_waitlist_now():

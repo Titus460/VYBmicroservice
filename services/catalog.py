@@ -52,6 +52,8 @@ SERVICES = {
         f"{PROFILE}/get_vibing_list",
         f"{PROFILE}/send_fcm_with_rest_new_user_dummysilent",
         f"{PROFILE}/add_to_waitlist",
+        f"{PROFILE}/internal/get_profile",
+        f"{PROFILE}/internal/get_profiles_batch",
     ],
     "geo": [
         f"{PROFILE}/fetch_locations_from_google",

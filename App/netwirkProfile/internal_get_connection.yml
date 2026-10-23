@@ -1,0 +1,31 @@
+tags:
+- social-internal
+summary: Internal connection/block status between two users
+description: |
+  Used by other microservices instead of JOIN blockedUsers / netwirkRequests*.
+  Not for the mobile app. Send X-Internal-Key when INTERNAL_API_KEY is set.
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      required:
+        - userId
+        - otherUserId
+      properties:
+        userId:
+          type: integer
+          example: 1
+        otherUserId:
+          type: integer
+          example: 2
+responses:
+  200:
+    description: Success
+  400:
+    description: Missing ids
+  401:
+    description: Unauthorized
+  500:
+    description: Internal server error

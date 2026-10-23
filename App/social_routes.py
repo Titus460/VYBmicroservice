@@ -217,6 +217,24 @@ def count_of_vibe_notifications_now():
     except:
         return "Error"
 
+@socialServiceRoute.route('/internal/get_social', methods=['POST'])
+@swag_from('netwirkProfile/internal_get_social.yml')
+def internal_get_social_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_social()
+    except Exception:
+        return "Error"
+
+@socialServiceRoute.route('/internal/get_connection', methods=['POST'])
+@swag_from('netwirkProfile/internal_get_connection.yml')
+def internal_get_connection_now():
+    netwirkProfile = profile()
+    try:
+        return netwirkProfile.get_internal_connection()
+    except Exception:
+        return "Error"
+
 @socialServiceRoute.route('/get_liked_by_me_user_list', methods=['POST'])
 @swag_from('netwirkProfile/get_liked_by_me_user_list.yml')
 def get_liked_by_me_user_list_now():

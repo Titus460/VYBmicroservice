@@ -75,3 +75,9 @@ def test_profile_client_posts_to_profile_service(monkeypatch):
 
 def test_profile_client_batch_empty_list():
     assert get_profiles_batch([]) == []
+
+
+def test_profile_json_safe_bytes():
+    service = ProfileService.__new__(ProfileService)
+    assert service._json_safe(b"hello") == "hello"
+    assert service._json_safe(None) is None

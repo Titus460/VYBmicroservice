@@ -99,6 +99,8 @@ SERVICES = {
         f"{PROFILE}/hide_user_from_list",
         f"{PROFILE}/count_of_vibe_notifications",
         f"{PROFILE}/get_liked_by_me_user_list",
+        f"{PROFILE}/internal/get_social",
+        f"{PROFILE}/internal/get_connection",
     ],
     "recsys": [
         f"{PROFILE}/get_user_list_offline",

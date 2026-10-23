@@ -11,6 +11,7 @@ import hmac
 import base64
 import hashlib
 from Model.netwirk_DB import DB
+from Model.social_db import SocialDB
 import os
 import qrcode
 from PIL import Image, ImageOps, ImageStat, ImageFilter
@@ -172,6 +173,117 @@ from Model.common_base import ProfileBase, profile
 
 
 class SocialService(ProfileBase):
+    def __init__(self):
+        super().__init__()
+        self.db = SocialDB()
+
+    def _require_internal_key(self):
+        expected = os.getenv("INTERNAL_API_KEY", "").strip()
+        if not expected:
+            return None
+        provided = request.headers.get("X-Internal-Key", "")
+        if provided != expected:
+            return jsonify({"Status": "Failure", "Message": "Unauthorized"}), 401
+        return None
+
+    def _ids(self, cursor):
+        return [int(row[0]) for row in cursor.fetchall() if row and row[0] is not None]
+
+    def get_internal_social(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            if user_id in (None, ""):
+                return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
+            user_id = int(user_id)
+            cursor = self.db.cur()
+            cursor.execute(
+                "SELECT blockedId FROM icebreaker.blockedUsers WHERE userId = %s",
+                (user_id,),
+            )
+            blocked_ids = self._ids(cursor)
+            cursor.execute(
+                "SELECT userId FROM icebreaker.blockedUsers WHERE blockedId = %s",
+                (user_id,),
+            )
+            blocked_by_ids = self._ids(cursor)
+            cursor.execute(
+                "SELECT requestedUserId FROM icebreaker.netwirkRequestsAccepted WHERE userId = %s",
+                (user_id,),
+            )
+            accepted_ids = self._ids(cursor)
+            cursor.execute(
+                "SELECT requestedUserId FROM icebreaker.netwirkRequestsPending WHERE userId = %s",
+                (user_id,),
+            )
+            pending_sent_ids = self._ids(cursor)
+            cursor.execute(
+                "SELECT userId FROM icebreaker.netwirkRequestsPending WHERE requestedUserId = %s",
+                (user_id,),
+            )
+            pending_received_ids = self._ids(cursor)
+            cursor.close()
+            return jsonify(
+                {
+                    "Status": "Success",
+                    "userId": user_id,
+                    "blockedIds": blocked_ids,
+                    "blockedByIds": blocked_by_ids,
+                    "acceptedIds": accepted_ids,
+                    "pendingSentIds": pending_sent_ids,
+                    "pendingReceivedIds": pending_received_ids,
+                }
+            ), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
+    def get_internal_connection(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            other_id = data.get("otherUserId")
+            if user_id in (None, "") or other_id in (None, ""):
+                return jsonify(
+                    {"Status": "Failure", "Message": "userId and otherUserId are required"}
+                ), 400
+            user_id = int(user_id)
+            other_id = int(other_id)
+            cursor = self.db.cur()
+            cursor.execute(
+                "SELECT 1 FROM icebreaker.blockedUsers WHERE (userId = %s AND blockedId = %s) OR (userId = %s AND blockedId = %s) LIMIT 1",
+                (user_id, other_id, other_id, user_id),
+            )
+            blocked = cursor.fetchone() is not None
+            cursor.execute(
+                "SELECT 1 FROM icebreaker.netwirkRequestsAccepted WHERE userId = %s AND requestedUserId = %s LIMIT 1",
+                (user_id, other_id),
+            )
+            accepted = cursor.fetchone() is not None
+            cursor.execute(
+                "SELECT 1 FROM icebreaker.netwirkRequestsPending WHERE userId = %s AND requestedUserId = %s LIMIT 1",
+                (user_id, other_id),
+            )
+            pending = cursor.fetchone() is not None
+            cursor.close()
+            return jsonify(
+                {
+                    "Status": "Success",
+                    "userId": user_id,
+                    "otherUserId": other_id,
+                    "blocked": blocked,
+                    "accepted": accepted,
+                    "pending": pending,
+                }
+            ), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
     def confirmNetwirkAPI(self):
         try:
             cursor = self.db.cur()

@@ -127,7 +127,6 @@ try:
                 "status": "ok",
                 "service": os.getenv("SERVICE_NAME") or "all",
                 "swagger": "/swagger",
-                "demo": "/demo/match",
                 "offline_feed_dashboard": "/offline-feed-dashboard",
             }
         )

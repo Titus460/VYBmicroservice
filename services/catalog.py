@@ -1,6 +1,6 @@
 """Which URL paths each microservice owns.
 
-Every path not listed here belongs to the "legacy" service.
+Unknown paths are not proxied (gateway 404). Unified Swagger is hosted on auth.
 """
 
 AUTH = "/registrationRoute"
@@ -114,17 +114,17 @@ SERVICES = {
     ],
 }
 
-LEGACY = "legacy"
-ALL_SERVICES = [*SERVICES, LEGACY]
+SWAGGER_HOST = "auth"
+ALL_SERVICES = list(SERVICES)
 
-COMMON_PATHS = {"/", "/health", "/healthz"}
-COMMON_PATH_PREFIXES = ("/swagger", "/apispec", "/flasgger_static", "/static")
+COMMON_PATHS = {"/", "/health", "/healthz", "/oauth2-redirect.html"}
+COMMON_PATH_PREFIXES = ("/swagger", "/apispec", "/flasgger_static", "/static", "/docs", "/apidocs")
 
 _OWNER = {path: name for name, paths in SERVICES.items() for path in paths}
 
 
 def owner_of(path):
-    return _OWNER.get(path, LEGACY)
+    return _OWNER.get(path)
 
 
 def is_common(path):

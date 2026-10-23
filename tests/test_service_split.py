@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
 from services import gateway  # noqa: E402
-from services.catalog import ALL_SERVICES, LEGACY, SERVICES, is_common, owner_of  # noqa: E402
+from services.catalog import ALL_SERVICES, SERVICES, SWAGGER_HOST, is_common, owner_of  # noqa: E402
 
 
 def _build_app(service):
@@ -81,9 +81,20 @@ def test_gateway_config_is_up_to_date():
     )
 
 
-def test_legacy_keeps_unlisted_endpoints(monolith_paths):
-    assert owner_of("/offline-feed-dashboard") == LEGACY
-    assert "/offline-feed-dashboard" in _paths(_build_app(LEGACY))
+def test_gateway_hosts_swagger_on_auth_and_404s_unknown_paths():
+    conf = gateway.render()
+    assert f"set $service {SWAGGER_HOST}" in conf
+    assert "location /swagger" in conf
+    assert "set $service legacy" not in conf
+    assert '"error":"Not Found"' in conf
+
+
+def test_auth_swagger_includes_other_service_paths():
+    spec = _build_app(SWAGGER_HOST).test_client().get("/apispec_1.json").get_json()
+    paths = spec["paths"]
+    assert "/registrationRoute/user_login" in paths
+    assert "/netwirkProfileRoute/internal/get_location" in paths
+    assert "/netwirkProfileRoute/get_user_list_offline" in paths
 
 
 @pytest.mark.parametrize("service", ALL_SERVICES)

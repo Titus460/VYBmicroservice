@@ -5,7 +5,7 @@ Run after editing the catalog:  python -m services.gateway
 
 from pathlib import Path
 
-from services.catalog import LEGACY, SERVICES
+from services.catalog import SERVICES, SWAGGER_HOST
 
 CONF_PATH = Path(__file__).parent / "gateway" / "nginx.conf"
 SERVICE_PORT = 8000
@@ -40,7 +40,19 @@ http {{
 
 {locations}
 
-        location / {{ set $service {LEGACY}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location /swagger {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location /apispec {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location /flasgger_static {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location /docs {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location /apidocs {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location = /openapi.json {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location = /oauth2-redirect.html {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+        location = / {{ set $service {SWAGGER_HOST}; proxy_pass http://$service:{SERVICE_PORT}; }}
+
+        location / {{
+            default_type application/json;
+            return 404 '{{"error":"Not Found"}}\\n';
+        }}
     }}
 }}
 """

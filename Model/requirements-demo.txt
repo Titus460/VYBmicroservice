@@ -1,5 +1,0 @@
-# Match demo only (demo_app.py) — no MySQL / ML stack required
-flask>=3.0.0
-flask-cors>=4.0.0
-requests>=2.31.0
-gunicorn>=21.0.0

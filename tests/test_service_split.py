@@ -82,8 +82,8 @@ def test_gateway_config_is_up_to_date():
 
 
 def test_legacy_keeps_unlisted_endpoints(monolith_paths):
-    assert owner_of("/demo") == LEGACY
-    assert "/demo" in _paths(_build_app(LEGACY))
+    assert owner_of("/offline-feed-dashboard") == LEGACY
+    assert "/offline-feed-dashboard" in _paths(_build_app(LEGACY))
 
 
 @pytest.mark.parametrize("service", ALL_SERVICES)

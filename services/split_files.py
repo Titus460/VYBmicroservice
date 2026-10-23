@@ -308,11 +308,10 @@ def main():
         "import logging\n"
         "from flask import Blueprint, jsonify, request\n"
         "from flasgger import swag_from\n"
-        "from App.matchDemoRoute import matchDemoRoute\n"
         "from Model.legacy_service import LegacyProfileService as profile, LegacyRegistrationService as registration\n\n"
         "legacyRegistrationRoute = Blueprint('legacyRegistrationRoute', __name__, url_prefix='/registrationRoute')\n"
         "legacyProfileRoute = Blueprint('legacyProfileRoute', __name__, url_prefix='/netwirkProfileRoute')\n"
-        "BLUEPRINTS = (legacyRegistrationRoute, legacyProfileRoute, matchDemoRoute)\n\n"
+        "BLUEPRINTS = (legacyRegistrationRoute, legacyProfileRoute)\n\n"
         + "\n".join(leg_reg_blocks)
         + "\n"
         + "\n".join(leg_prof_blocks)

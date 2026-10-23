@@ -201,6 +201,74 @@ from Model.common_base import ProfileBase, RegistrationBase, profile
 
 
 class AuthRegistrationService(RegistrationBase):
+    _INTERNAL_USER_HIDDEN = {"password"}
+
+    def __init__(self):
+        super().__init__()
+        self.db = DB(env_prefix="AUTH")
+
+    def _require_internal_key(self):
+        expected = os.getenv("INTERNAL_API_KEY", "").strip()
+        if not expected:
+            return None
+        provided = request.headers.get("X-Internal-Key", "")
+        if provided != expected:
+            return jsonify({"Status": "Failure", "Message": "Unauthorized"}), 401
+        return None
+
+    def _row_to_public_user(self, cursor, row):
+        if not row:
+            return None
+        columns = [col[0] for col in cursor.description]
+        user = dict(zip(columns, row))
+        for hidden in self._INTERNAL_USER_HIDDEN:
+            user.pop(hidden, None)
+        return user
+
+    def get_internal_user(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            if user_id in (None, ""):
+                return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
+            cursor = self.db.cur()
+            cursor.execute(
+                "SELECT * FROM icebreaker.registration WHERE userId = %s",
+                (int(user_id),),
+            )
+            user = self._row_to_public_user(cursor, cursor.fetchone())
+            cursor.close()
+            if not user:
+                return jsonify({"Status": "Failure", "Message": "User not found"}), 404
+            return jsonify({"Status": "Success", "user": user}), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
+    def get_internal_users_batch(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_ids = data.get("userIds") or []
+            if not isinstance(user_ids, list) or not user_ids:
+                return jsonify({"Status": "Failure", "Message": "userIds must be a non-empty list"}), 400
+            ids = [int(uid) for uid in user_ids]
+            cursor = self.db.cur()
+            placeholders = ",".join(["%s"] * len(ids))
+            cursor.execute(
+                f"SELECT * FROM icebreaker.registration WHERE userId IN ({placeholders})",
+                tuple(ids),
+            )
+            users = [self._row_to_public_user(cursor, row) for row in cursor.fetchall()]
+            cursor.close()
+            return jsonify({"Status": "Success", "users": users}), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
     def _clear_device_token(self, cursor, user_id):
         cursor.execute(
             "UPDATE icebreaker.registration SET deviceToken = NULL WHERE userId = %s",
@@ -2133,6 +2201,10 @@ class AuthRegistrationService(RegistrationBase):
 
 
 class AuthProfileService(ProfileBase):
+    def __init__(self):
+        super().__init__()
+        self.db = DB(env_prefix="AUTH")
+
     def retrieve_userId_via_authenticationId(self):
         try :
             cursor = self.db.cur()

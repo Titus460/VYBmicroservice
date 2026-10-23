@@ -12,7 +12,10 @@ import hmac
 import base64
 import hashlib
 from Model.netwirk_DB import DB
+from Model.auth_client import get_user
+from Model.geo_client import get_incognito
 from Model.profile_db import ProfileDB
+from Model.social_client import get_connection
 import os
 import qrcode
 from PIL import Image, ImageOps, ImageStat, ImageFilter
@@ -988,36 +991,32 @@ class ProfileService(ProfileBase):
         try:
             request_data = request.get_json()
             login_user_id = int(request_data['loginUserId'])
-            requested_user_id =int (request_data['requestedUserId'])
-     
+            requested_user_id = int(request_data['requestedUserId'])
+
+            login_user = get_user(login_user_id) or {}
+            requested_user = get_user(requested_user_id)
+            if not requested_user:
+                return jsonify({"error": self.USER_NOT_FOUND_MESSAGE})
+
+            connection = get_connection(login_user_id, requested_user_id) or {}
+            block_flag = 1 if connection.get("blockedByMe") else 0
+            status = self._status_from_connection(connection)
 
             cursor = self.db.cur()
-
-            login_web_token = self._get_login_token_google(cursor, login_user_id)
-            print(login_web_token)
-            block_flag = self._get_block_status_new(cursor, login_user_id, requested_user_id)
-
-            user_dict = self._get_user_details_profile_new(cursor, requested_user_id, block_flag, login_user_id)
-            if not user_dict:
-                return self._user_not_found_response_new(cursor)
-        
-            # user_dict["status"] = self._get_interaction_status_new(cursor, login_user_id, requested_user_id)
-
-            status = self._get_interaction_status_new(cursor, login_user_id, requested_user_id)
+            user_dict = self._get_user_details_profile_new(cursor, requested_user, block_flag)
             user_dict["status"] = status
-            user_dict["loginWebToken"] = login_web_token
+            user_dict["loginWebToken"] = login_user.get("loginWebToken") or ""
             user_dict["pictures"] = self._get_user_pictures_new(cursor, requested_user_id)
-            user_dict["wave_status"]= self.get_wave_status_sender(cursor,login_user_id,requested_user_id )
+            user_dict["wave_status"] = connection.get("waveStatus") or "no_wave"
 
-            incognito, cognito_time = self._get_incognito_status_new(cursor, requested_user_id)
-            is_incognito = bool(incognito)
-
+            incognito_row = get_incognito(requested_user_id) or {}
+            is_incognito = bool(incognito_row.get("incognito"))
             if is_incognito and status in ("Connected", "Request_Received"):
                 user_dict["incognito"] = False
             else:
                 user_dict["incognito"] = is_incognito
                 if is_incognito:
-                    user_dict["cognito_time"] = cognito_time
+                    user_dict["cognito_time"] = incognito_row.get("cognitoTime")
 
             cursor.close()
             self.db.conn.close()
@@ -1028,6 +1027,35 @@ class ProfileService(ProfileBase):
             error = {'error': str(e)}
             print(error)
             return jsonify(error)
+
+    def _status_from_connection(self, connection):
+        if connection.get("accepted"):
+            return "Connected"
+        if connection.get("pending"):
+            return "Request_Sent"
+        if connection.get("pendingReceived"):
+            return "Request_Received"
+        return "No_Interaction"
+
+    def _format_profile_dob(self, value):
+        if not value:
+            return None
+        if hasattr(value, "strftime"):
+            return value.strftime("%m-%d-%Y")
+        text = str(value).strip()
+        for fmt in (
+            "%Y-%m-%d",
+            "%m-%d-%Y",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%dT%H:%M:%S",
+            "%a, %d %b %Y %H:%M:%S %Z",
+        ):
+            try:
+                parsed = datetime.strptime(text[:19] if fmt.startswith("%Y-%m-%dT") else text, fmt)
+                return parsed.strftime("%m-%d-%Y")
+            except ValueError:
+                continue
+        return text
 
     def _get_block_status_new(self, cursor, login_user_id, requested_user_id):
         cursor.execute(
@@ -1054,85 +1082,52 @@ class ProfileService(ProfileBase):
 
         return False, None
 
-    def _get_user_details_profile_new(self, cursor, requested_user_id, block_flag,login_user_id):
-        cursor.execute("""
-                SELECT r.userId, 
-            p.profilePic,
-            p.selfiePic, 
-            r.fullName, 
-            r.email, 
-            r.firebaseId, 
-            r.signupType, 
-            r.deviceToken, 
-            r.authenticationId, 
-            r.Gender, 
-            r.Preference, 
-            r.DOB, 
-            p.vibes, 
-            p.vibing, 
-            r.countryCode, 
-            r.phoneNo, 
-            r.city, 
-            r.state, 
-            r.country, 
-            p.zodiac_sign,
-            p.answer1,
-            p.answer2,
-            p.answer3,
-            p.answer4,
-            p.height,
-            p.answer5,
-            p.answer6,
-            p.age_preference,
-            p.prompt1question,
-            p.prompt1answer,
-            p.prompt2question,
-            p.prompt2answer
-                              
-        FROM icebreaker.registration r
-        LEFT JOIN icebreaker.profile p ON r.userId = p.userId
-        WHERE r.userId = %s
-        """, (requested_user_id,))
-        row = cursor.fetchone()
-
-        if not row:
-            return None
-           
+    def _get_user_details_profile_new(self, cursor, user, block_flag):
+        cursor.execute(
+            """
+            SELECT profilePic, selfiePic, vibes, vibing, zodiac_sign,
+                   answer1, answer2, answer3, answer4, height, answer5, answer6,
+                   age_preference, prompt1question, prompt1answer, prompt2question, prompt2answer
+            FROM icebreaker.profile
+            WHERE userId = %s
+            """,
+            (int(user["userId"]),),
+        )
+        row = cursor.fetchone() or (None,) * 17
         return {
-            "userId": row[0],
-            "profilePic": row[1],
-            "selfiePic": row[2],
-            "fullName": row[3],
-            "email": row[4],
-            "firebaseId": row[5],
-            "signupType": row[6],
-            "deviceToken": row[7],
-            "authenticationId": row[8],
-            "Gender": row[9],
-            "Preference": row[10],
-            "DOB": row[11].strftime('%m-%d-%Y') if row[11] else None,
-            "vibes": row[12],
-            "vibing": row[13],
-            "countryCode": row[14],
-            "phoneNo": row[15],
-            "city": row[16],
-            "state": row[17],
-            "country": row[18],
-            "zodiac_sign": row[19],
-            "what_makes_my_friends_laugh_about_me":row[20],
-            "weekend_usually_looks_like":row[21],
-            "Describe_your_communication_style":row[22],
-            "What_brings_you_to_Vyb":row[23],
-            "height":row[24],
-            "What_kind_of_partner_do_you_vibe_with_most":row[25],
-            "What_does_everyday_vyb_look_like":row[26],
-            "age_preference":row[27],
-            "prompt1question":row[28],
-            "prompt1answer":row[29],
-            "prompt2question":row[30],
-            "prompt2answer":row[31],
+            "userId": user.get("userId"),
+            "profilePic": self._json_safe(row[0]),
+            "selfiePic": self._json_safe(row[1]),
+            "fullName": user.get("fullName"),
+            "email": user.get("email"),
+            "firebaseId": user.get("firebaseId"),
+            "signupType": user.get("signupType"),
+            "deviceToken": user.get("deviceToken"),
+            "authenticationId": user.get("authenticationId"),
+            "Gender": user.get("Gender"),
+            "Preference": user.get("Preference"),
+            "DOB": self._format_profile_dob(user.get("DOB")),
+            "vibes": self._json_safe(row[2]),
+            "vibing": self._json_safe(row[3]),
+            "countryCode": user.get("countryCode"),
+            "phoneNo": user.get("phoneNo"),
+            "city": user.get("city"),
+            "state": user.get("state"),
+            "country": user.get("country"),
+            "zodiac_sign": self._json_safe(row[4]),
+            "what_makes_my_friends_laugh_about_me": self._json_safe(row[5]),
+            "weekend_usually_looks_like": self._json_safe(row[6]),
+            "Describe_your_communication_style": self._json_safe(row[7]),
+            "What_brings_you_to_Vyb": self._json_safe(row[8]),
+            "height": self._json_safe(row[9]),
+            "What_kind_of_partner_do_you_vibe_with_most": self._json_safe(row[10]),
+            "What_does_everyday_vyb_look_like": self._json_safe(row[11]),
+            "age_preference": self._json_safe(row[12]),
+            "prompt1question": self._json_safe(row[13]),
+            "prompt1answer": self._json_safe(row[14]),
+            "prompt2question": self._json_safe(row[15]),
+            "prompt2answer": self._json_safe(row[16]),
             "block_flag": block_flag,
-            # "wave_status": wave_status
         }
 
     def _get_interaction_status_new(self, cursor, login_user_id, requested_user_id):
@@ -1160,7 +1155,7 @@ class ProfileService(ProfileBase):
         )
         pics_data = cursor.fetchall()
         return [
-            {"url": pic_url, "isProfilePicture": bool(is_profile)}
+            {"url": self._json_safe(pic_url), "isProfilePicture": bool(is_profile)}
             for pic_url, is_profile in pics_data
         ]
 

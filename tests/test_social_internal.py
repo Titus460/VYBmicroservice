@@ -56,6 +56,7 @@ def test_social_dual_write_mirrors_updates():
 
 
 def test_social_client_posts_to_social_service(monkeypatch):
+    monkeypatch.setenv("SERVICE_NAME", "profile")
     monkeypatch.setenv("SOCIAL_SERVICE_URL", "http://social:8000")
 
     class FakeResponse:

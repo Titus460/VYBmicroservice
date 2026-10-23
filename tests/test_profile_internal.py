@@ -81,3 +81,106 @@ def test_profile_json_safe_bytes():
     service = ProfileService.__new__(ProfileService)
     assert service._json_safe(b"hello") == "hello"
     assert service._json_safe(None) is None
+
+
+def test_status_from_connection():
+    service = ProfileService.__new__(ProfileService)
+    assert service._status_from_connection({"accepted": True}) == "Connected"
+    assert service._status_from_connection({"pending": True}) == "Request_Sent"
+    assert service._status_from_connection({"pendingReceived": True}) == "Request_Received"
+    assert service._status_from_connection({}) == "No_Interaction"
+
+
+def test_format_profile_dob():
+    service = ProfileService.__new__(ProfileService)
+    assert service._format_profile_dob("1990-01-15") == "01-15-1990"
+    assert service._format_profile_dob("01-15-1990") == "01-15-1990"
+    assert service._format_profile_dob(None) is None
+
+
+def test_get_user_profile_details_new_does_not_query_registration(monkeypatch):
+    from flask import Flask
+
+    login_user = {"userId": 50, "loginWebToken": "tok"}
+    requested = {
+        "userId": 108,
+        "fullName": "Ada",
+        "email": "ada@example.com",
+        "firebaseId": None,
+        "signupType": "email",
+        "deviceToken": None,
+        "authenticationId": "auth-1",
+        "Gender": "F",
+        "Preference": None,
+        "DOB": "1990-01-15",
+        "countryCode": "+1",
+        "phoneNo": "555",
+        "city": "NY",
+        "state": "NY",
+        "country": "US",
+    }
+    sql_seen = []
+
+    class FakeCursor:
+        def execute(self, sql, params=None):
+            sql_seen.append(sql)
+            self._sql = sql
+
+        def fetchone(self):
+            if "profile" in self._sql:
+                return (None,) * 17
+            return None
+
+        def fetchall(self):
+            return []
+
+        def close(self):
+            pass
+
+    class FakeConn:
+        def close(self):
+            pass
+
+        def rollback(self):
+            pass
+
+    class FakeDB:
+        conn = FakeConn()
+
+        def cur(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(
+        "Model.profile_service.get_user",
+        lambda uid: login_user if uid == 50 else requested,
+    )
+    monkeypatch.setattr(
+        "Model.profile_service.get_connection",
+        lambda *_args, **_kwargs: {
+            "blockedByMe": False,
+            "accepted": True,
+            "pending": False,
+            "pendingReceived": False,
+            "waveStatus": "no_wave",
+        },
+    )
+    monkeypatch.setattr(
+        "Model.profile_service.get_incognito",
+        lambda *_args, **_kwargs: {"incognito": False, "cognitoTime": None},
+    )
+
+    service = ProfileService.__new__(ProfileService)
+    service.db = FakeDB()
+    app = Flask(__name__)
+    with app.test_request_context(json={"loginUserId": 50, "requestedUserId": 108}):
+        response = service.get_user_profile_details_new()
+    body = response.get_json()
+    assert "error" not in body
+    assert body["userId"] == 108
+    assert body["fullName"] == "Ada"
+    assert body["DOB"] == "01-15-1990"
+    assert body["status"] == "Connected"
+    assert body["loginWebToken"] == "tok"
+    assert all("registration" not in sql.lower() for sql in sql_seen)
+    assert all("blockedUsers" not in sql for sql in sql_seen)
+    assert all("location" not in sql.lower() for sql in sql_seen)

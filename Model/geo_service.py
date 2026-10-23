@@ -172,6 +172,45 @@ from Model.common_base import ProfileBase, profile
 
 
 class GeoService(ProfileBase):
+    def _require_internal_key(self):
+        expected = os.getenv("INTERNAL_API_KEY", "").strip()
+        if not expected:
+            return None
+        provided = request.headers.get("X-Internal-Key", "")
+        if provided != expected:
+            return jsonify({"Status": "Failure", "Message": "Unauthorized"}), 401
+        return None
+
+    def lookup_incognito(self, user_id):
+        user_id = int(user_id)
+        cursor = self.db.cur()
+        cursor.execute(
+            "SELECT incognito, cognito_time FROM icebreaker.location WHERE userId = %s",
+            (user_id,),
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        incognito = bool(row and row[0] == 1)
+        return {
+            "Status": "Success",
+            "userId": user_id,
+            "incognito": incognito,
+            "cognitoTime": row[1] if incognito else None,
+        }
+
+    def get_internal_incognito(self):
+        denied = self._require_internal_key()
+        if denied:
+            return denied
+        try:
+            data = request.get_json(silent=True) or {}
+            user_id = data.get("userId")
+            if user_id in (None, ""):
+                return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
+            return jsonify(self.lookup_incognito(user_id)), 200
+        except Exception as e:
+            return jsonify({"Status": "Failure", "Message": str(e)}), 500
+
     def fetch_locations_from_google(self):
         cursor = self.db.cur()
         data = request.get_json()

@@ -187,6 +187,24 @@ def get_apple_user_now():
         print(str(e))
         return "Error"
 
+@authRegistrationRoute.route('/internal/get_user', methods=['POST'])
+@swag_from('registration/internal_get_user.yml')
+def internal_get_user_now():
+    register = registration()
+    try:
+        return register.get_internal_user()
+    except Exception:
+        return "Error"
+
+@authRegistrationRoute.route('/internal/get_users_batch', methods=['POST'])
+@swag_from('registration/internal_get_users_batch.yml')
+def internal_get_users_batch_now():
+    register = registration()
+    try:
+        return register.get_internal_users_batch()
+    except Exception:
+        return "Error"
+
 @authProfileRoute.route('/retrieve_userId_via_authenticationId', methods=['POST'])
 @swag_from('netwirkProfile/retrieve_userId_via_authenticationId.yml')
 def retrieve_userId_via_authenticationId_now():

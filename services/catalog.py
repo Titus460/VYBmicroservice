@@ -26,6 +26,8 @@ SERVICES = {
         f"{AUTH}/register_apple_user",
         f"{AUTH}/get_apple_user",
         f"{AUTH}/update_authenticationId_using_userId",
+        f"{AUTH}/internal/get_user",
+        f"{AUTH}/internal/get_users_batch",
         f"{PROFILE}/retrieve_userId_via_authenticationId",
     ],
     "profile": [

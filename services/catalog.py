@@ -75,6 +75,7 @@ SERVICES = {
         f"{PROFILE}/usercheckinSendNotification",
         f"{PROFILE}/usercheckinSendNotification_radius",
         f"{PROFILE}/user_live_location_offline",
+        f"{PROFILE}/internal/get_incognito",
     ],
     "social": [
         f"{PROFILE}/handle_send_wave_new",

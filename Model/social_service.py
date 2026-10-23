@@ -189,6 +189,88 @@ class SocialService(ProfileBase):
     def _ids(self, cursor):
         return [int(row[0]) for row in cursor.fetchall() if row and row[0] is not None]
 
+    def lookup_social(self, user_id):
+        user_id = int(user_id)
+        cursor = self.db.cur()
+        cursor.execute(
+            "SELECT blockedId FROM icebreaker.blockedUsers WHERE userId = %s",
+            (user_id,),
+        )
+        blocked_ids = self._ids(cursor)
+        cursor.execute(
+            "SELECT userId FROM icebreaker.blockedUsers WHERE blockedId = %s",
+            (user_id,),
+        )
+        blocked_by_ids = self._ids(cursor)
+        cursor.execute(
+            "SELECT requestedUserId FROM icebreaker.netwirkRequestsAccepted WHERE userId = %s",
+            (user_id,),
+        )
+        accepted_ids = self._ids(cursor)
+        cursor.execute(
+            "SELECT requestedUserId FROM icebreaker.netwirkRequestsPending WHERE userId = %s",
+            (user_id,),
+        )
+        pending_sent_ids = self._ids(cursor)
+        cursor.execute(
+            "SELECT userId FROM icebreaker.netwirkRequestsPending WHERE requestedUserId = %s",
+            (user_id,),
+        )
+        pending_received_ids = self._ids(cursor)
+        cursor.close()
+        return {
+            "Status": "Success",
+            "userId": user_id,
+            "blockedIds": blocked_ids,
+            "blockedByIds": blocked_by_ids,
+            "acceptedIds": accepted_ids,
+            "pendingSentIds": pending_sent_ids,
+            "pendingReceivedIds": pending_received_ids,
+        }
+
+    def lookup_connection(self, user_id, other_id):
+        user_id = int(user_id)
+        other_id = int(other_id)
+        cursor = self.db.cur()
+        cursor.execute(
+            "SELECT 1 FROM icebreaker.blockedUsers WHERE (userId = %s AND blockedId = %s) OR (userId = %s AND blockedId = %s) LIMIT 1",
+            (user_id, other_id, other_id, user_id),
+        )
+        blocked = cursor.fetchone() is not None
+        cursor.execute(
+            "SELECT 1 FROM icebreaker.netwirkRequestsAccepted WHERE userId = %s AND requestedUserId = %s LIMIT 1",
+            (user_id, other_id),
+        )
+        accepted = cursor.fetchone() is not None
+        cursor.execute(
+            "SELECT 1 FROM icebreaker.blockedUsers WHERE userId = %s AND blockedId = %s LIMIT 1",
+            (user_id, other_id),
+        )
+        blocked_by_me = cursor.fetchone() is not None
+        cursor.execute(
+            "SELECT 1 FROM icebreaker.netwirkRequestsPending WHERE userId = %s AND requestedUserId = %s LIMIT 1",
+            (user_id, other_id),
+        )
+        pending = cursor.fetchone() is not None
+        cursor.execute(
+            "SELECT 1 FROM icebreaker.netwirkRequestsPending WHERE userId = %s AND requestedUserId = %s LIMIT 1",
+            (other_id, user_id),
+        )
+        pending_received = cursor.fetchone() is not None
+        wave_status = self.get_wave_status_sender(cursor, user_id, other_id)
+        cursor.close()
+        return {
+            "Status": "Success",
+            "userId": user_id,
+            "otherUserId": other_id,
+            "blocked": blocked,
+            "blockedByMe": blocked_by_me,
+            "accepted": accepted,
+            "pending": pending,
+            "pendingReceived": pending_received,
+            "waveStatus": wave_status,
+        }
+
     def get_internal_social(self):
         denied = self._require_internal_key()
         if denied:
@@ -198,45 +280,7 @@ class SocialService(ProfileBase):
             user_id = data.get("userId")
             if user_id in (None, ""):
                 return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
-            user_id = int(user_id)
-            cursor = self.db.cur()
-            cursor.execute(
-                "SELECT blockedId FROM icebreaker.blockedUsers WHERE userId = %s",
-                (user_id,),
-            )
-            blocked_ids = self._ids(cursor)
-            cursor.execute(
-                "SELECT userId FROM icebreaker.blockedUsers WHERE blockedId = %s",
-                (user_id,),
-            )
-            blocked_by_ids = self._ids(cursor)
-            cursor.execute(
-                "SELECT requestedUserId FROM icebreaker.netwirkRequestsAccepted WHERE userId = %s",
-                (user_id,),
-            )
-            accepted_ids = self._ids(cursor)
-            cursor.execute(
-                "SELECT requestedUserId FROM icebreaker.netwirkRequestsPending WHERE userId = %s",
-                (user_id,),
-            )
-            pending_sent_ids = self._ids(cursor)
-            cursor.execute(
-                "SELECT userId FROM icebreaker.netwirkRequestsPending WHERE requestedUserId = %s",
-                (user_id,),
-            )
-            pending_received_ids = self._ids(cursor)
-            cursor.close()
-            return jsonify(
-                {
-                    "Status": "Success",
-                    "userId": user_id,
-                    "blockedIds": blocked_ids,
-                    "blockedByIds": blocked_by_ids,
-                    "acceptedIds": accepted_ids,
-                    "pendingSentIds": pending_sent_ids,
-                    "pendingReceivedIds": pending_received_ids,
-                }
-            ), 200
+            return jsonify(self.lookup_social(user_id)), 200
         except Exception as e:
             return jsonify({"Status": "Failure", "Message": str(e)}), 500
 
@@ -252,35 +296,7 @@ class SocialService(ProfileBase):
                 return jsonify(
                     {"Status": "Failure", "Message": "userId and otherUserId are required"}
                 ), 400
-            user_id = int(user_id)
-            other_id = int(other_id)
-            cursor = self.db.cur()
-            cursor.execute(
-                "SELECT 1 FROM icebreaker.blockedUsers WHERE (userId = %s AND blockedId = %s) OR (userId = %s AND blockedId = %s) LIMIT 1",
-                (user_id, other_id, other_id, user_id),
-            )
-            blocked = cursor.fetchone() is not None
-            cursor.execute(
-                "SELECT 1 FROM icebreaker.netwirkRequestsAccepted WHERE userId = %s AND requestedUserId = %s LIMIT 1",
-                (user_id, other_id),
-            )
-            accepted = cursor.fetchone() is not None
-            cursor.execute(
-                "SELECT 1 FROM icebreaker.netwirkRequestsPending WHERE userId = %s AND requestedUserId = %s LIMIT 1",
-                (user_id, other_id),
-            )
-            pending = cursor.fetchone() is not None
-            cursor.close()
-            return jsonify(
-                {
-                    "Status": "Success",
-                    "userId": user_id,
-                    "otherUserId": other_id,
-                    "blocked": blocked,
-                    "accepted": accepted,
-                    "pending": pending,
-                }
-            ), 200
+            return jsonify(self.lookup_connection(user_id, other_id)), 200
         except Exception as e:
             return jsonify({"Status": "Failure", "Message": str(e)}), 500
 

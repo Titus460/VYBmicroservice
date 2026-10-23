@@ -2,7 +2,7 @@ tags:
 - social-internal
 summary: Internal connection/block status between two users
 description: |
-  Used by other microservices instead of JOIN blockedUsers / netwirkRequests*.
+  Used by other microservices instead of JOIN blockedUsers / netwirkRequests* / user_likes.
   Not for the mobile app. Send X-Internal-Key when INTERNAL_API_KEY is set.
 parameters:
   - in: body

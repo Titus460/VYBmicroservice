@@ -227,6 +227,30 @@ class AuthRegistrationService(RegistrationBase):
             user.pop(hidden, None)
         return user
 
+    def lookup_user(self, user_id):
+        cursor = self.db.cur()
+        cursor.execute(
+            "SELECT * FROM icebreaker.registration WHERE userId = %s",
+            (int(user_id),),
+        )
+        user = self._row_to_public_user(cursor, cursor.fetchone())
+        cursor.close()
+        return user
+
+    def lookup_users(self, user_ids):
+        ids = [int(uid) for uid in user_ids]
+        if not ids:
+            return []
+        cursor = self.db.cur()
+        placeholders = ",".join(["%s"] * len(ids))
+        cursor.execute(
+            f"SELECT * FROM icebreaker.registration WHERE userId IN ({placeholders})",
+            tuple(ids),
+        )
+        users = [self._row_to_public_user(cursor, row) for row in cursor.fetchall()]
+        cursor.close()
+        return users
+
     def get_internal_user(self):
         denied = self._require_internal_key()
         if denied:
@@ -236,13 +260,7 @@ class AuthRegistrationService(RegistrationBase):
             user_id = data.get("userId")
             if user_id in (None, ""):
                 return jsonify({"Status": "Failure", "Message": "userId is required"}), 400
-            cursor = self.db.cur()
-            cursor.execute(
-                "SELECT * FROM icebreaker.registration WHERE userId = %s",
-                (int(user_id),),
-            )
-            user = self._row_to_public_user(cursor, cursor.fetchone())
-            cursor.close()
+            user = self.lookup_user(user_id)
             if not user:
                 return jsonify({"Status": "Failure", "Message": "User not found"}), 404
             return jsonify({"Status": "Success", "user": user}), 200
@@ -258,15 +276,7 @@ class AuthRegistrationService(RegistrationBase):
             user_ids = data.get("userIds") or []
             if not isinstance(user_ids, list) or not user_ids:
                 return jsonify({"Status": "Failure", "Message": "userIds must be a non-empty list"}), 400
-            ids = [int(uid) for uid in user_ids]
-            cursor = self.db.cur()
-            placeholders = ",".join(["%s"] * len(ids))
-            cursor.execute(
-                f"SELECT * FROM icebreaker.registration WHERE userId IN ({placeholders})",
-                tuple(ids),
-            )
-            users = [self._row_to_public_user(cursor, row) for row in cursor.fetchall()]
-            cursor.close()
+            users = self.lookup_users(user_ids)
             return jsonify({"Status": "Success", "users": users}), 200
         except Exception as e:
             return jsonify({"Status": "Failure", "Message": str(e)}), 500

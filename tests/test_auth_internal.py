@@ -4,6 +4,7 @@ from unittest.mock import patch
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
 from Model.auth_client import get_user, get_users_batch
+from Model.internal_rpc import should_http
 from Model.auth_db import DualWriteCursor, is_write_sql, rewrite_auth_sql
 from Model.auth_service import AuthRegistrationService
 from services.catalog import owner_of
@@ -29,10 +30,13 @@ def test_internal_key_rejects_wrong_header(monkeypatch):
 
 
 def test_auth_client_posts_to_auth_service(monkeypatch):
+    monkeypatch.setenv("SERVICE_NAME", "profile")
     monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth:8000")
     monkeypatch.setenv("INTERNAL_API_KEY", "secret")
 
     class FakeResponse:
+        status_code = 200
+
         def raise_for_status(self):
             return None
 
@@ -47,6 +51,43 @@ def test_auth_client_posts_to_auth_service(monkeypatch):
     assert args[0] == "http://auth:8000/registrationRoute/internal/get_user"
     assert kwargs["json"] == {"userId": 7}
     assert kwargs["headers"]["X-Internal-Key"] == "secret"
+
+
+def test_should_http_skips_compose_hosts_locally(monkeypatch):
+    monkeypatch.delenv("SERVICE_NAME", raising=False)
+    monkeypatch.delenv("INTERNAL_API_INPROCESS", raising=False)
+    assert should_http("http://auth:8000") is False
+    assert should_http("http://127.0.0.1:8000") is True
+    monkeypatch.setenv("SERVICE_NAME", "profile")
+    assert should_http("http://auth:8000") is True
+
+
+def test_auth_client_uses_inprocess_outside_compose(monkeypatch):
+    monkeypatch.delenv("SERVICE_NAME", raising=False)
+    monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth:8000")
+    with patch("Model.auth_client._lookup_user_local", return_value={"userId": 7}) as local:
+        with patch("Model.auth_client.requests.post") as post:
+            user = get_user(7)
+    assert user["userId"] == 7
+    local.assert_called_once_with(7)
+    post.assert_not_called()
+
+
+def test_auth_client_returns_none_on_404(monkeypatch):
+    monkeypatch.setenv("SERVICE_NAME", "profile")
+    monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth:8000")
+
+    class FakeResponse:
+        status_code = 404
+
+        def raise_for_status(self):
+            raise AssertionError("404 should not raise")
+
+        def json(self):
+            return {"Status": "Failure", "Message": "User not found"}
+
+    with patch("Model.auth_client.requests.post", return_value=FakeResponse()):
+        assert get_user(999) is None
 
 
 def test_auth_client_batch_empty_list():

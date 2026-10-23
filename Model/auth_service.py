@@ -9,6 +9,7 @@ import hmac
 import base64
 import hashlib
 from Model.netwirk_DB import DB
+from Model.auth_db import AuthDB
 from botocore.exceptions import ClientError
 import jwt
 import time
@@ -40,6 +41,7 @@ import hmac
 import base64
 import hashlib
 from Model.netwirk_DB import DB
+from Model.auth_db import AuthDB
 import os
 import qrcode
 from PIL import Image, ImageOps, ImageStat, ImageFilter
@@ -205,7 +207,7 @@ class AuthRegistrationService(RegistrationBase):
 
     def __init__(self):
         super().__init__()
-        self.db = DB(env_prefix="AUTH")
+        self.db = AuthDB()
 
     def _require_internal_key(self):
         expected = os.getenv("INTERNAL_API_KEY", "").strip()
@@ -2203,7 +2205,7 @@ class AuthRegistrationService(RegistrationBase):
 class AuthProfileService(ProfileBase):
     def __init__(self):
         super().__init__()
-        self.db = DB(env_prefix="AUTH")
+        self.db = AuthDB()
 
     def retrieve_userId_via_authenticationId(self):
         try :
